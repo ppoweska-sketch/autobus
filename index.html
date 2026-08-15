@@ -35,8 +35,7 @@
   .main{text-align:center;padding:22px 6px 8px}
   #lineTitle{font-size:44px;font-weight:850;letter-spacing:-1px;line-height:1.05}
   #whereAmI{font-size:26px;font-weight:700;margin-top:28px;line-height:1.25}
-  .main.wolne{padding-top:120px}
-  .main.wolne #whereAmI{color:var(--ok);font-size:30px}
+  .main.wolne #whereAmI{color:var(--warn);font-size:30px;margin-top:60px}
   #goingTo{font-size:26px;font-weight:700;color:var(--accent);margin-top:4px;line-height:1.25}
   #atLabel{font-size:19px;color:var(--dim);margin-top:34px}
   #at{font-size:66px;font-weight:850;letter-spacing:-2px;line-height:1;margin-top:6px}
@@ -115,8 +114,8 @@ const DEFAULT_CONFIG = {
         { number: "R3", direction: "",
           weekday:  ["05:36","06:16","07:11","08:01","08:56","09:46",
                      "10:51","11:56","13:17","14:12","15:12","16:06","17:14","17:54"],
-          saturday: [],                  // TODO: brak danych
-          sunday:   [] }                 // TODO: brak danych
+          saturday: ["08:46","10:46","13:46","15:46"],
+          sunday:   [] }                 // niedziele i święta — nie jeździ
       ]
     },
     {
@@ -126,13 +125,13 @@ const DEFAULT_CONFIG = {
       lat: 52.127140, lon: 20.961425,  // ← współrzędne szkoły
       radius: 300,
       walk: 2,
-      stop: "Szkoła Łady 01",
+      stop: "Łady – Szkoła",             // numer słupka do potwierdzenia (01 czy 02)
       lines: [
         { number: "R3", direction: "",
-          weekday:  ["06:01","06:41","07:36","08:26","09:21","10:11",
+          weekday:  ["06:01","06:41","07:36","08:26","09:21","10:11",   // ze słupka 01
                      "11:16","12:21","13:42","14:37","15:37","16:31","17:39","18:19"],
-          saturday: [],                  // TODO: brak danych
-          sunday:   [] }                 // TODO: brak danych
+          saturday: ["09:04","11:04","14:04","16:04"],                  // ze słupka 02
+          sunday:   [] }                 // niedziele i święta — nie jeździ
       ]
     }
   ]
@@ -345,19 +344,19 @@ function render() {
   if (!$("#settings").classList.contains("hidden")) return;   // ustawienia otwarte
   const now = new Date();
 
-  // --- weekend / święto: ekran nie zależy od lokalizacji ---
+  // --- niedziela / święto: autobus nie jeździ, ekran nie zależy od lokalizacji ---
   const typDnia = dayType(now);
   const saKursyDzis = config.places.some(p =>
     (p.lines || []).some(l => (l[typDnia] || []).length));
-  if (typDnia !== "weekday" && !saKursyDzis) {
+  if (typDnia === "sunday" && !saKursyDzis) {
     if (changed("banner", "")) {
       $("#banner").innerHTML = ""; $("#banner").classList.add("hidden");
     }
     if (changed("switch", "wolne")) {
       $("#switch").innerHTML = ""; $("#switch").classList.add("hidden");
     }
-    setText("#lineTitle", freeDayTitle(now));
-    setText("#whereAmI", "Dziś nie idziesz do szkoły!");
+    setText("#lineTitle", "Autobus " + ((config.places[0].lines[0] || {}).number || ""));
+    setText("#whereAmI", "Dziś autobus nie jeździ!");
     setText("#goingTo", "");
     setText("#atLabel", "");
     setText("#at", "");
@@ -478,12 +477,6 @@ function esc(s) {
 function formatDist(m) {
   if (m == null) return "";
   return m < 1000 ? Math.round(m) + " m" : (m / 1000).toFixed(1) + " km";
-}
-/* Nagłówek ekranu wolnego od szkoły */
-function freeDayTitle(d) {
-  if (d.getDay() === 6) return "Jest sobota";
-  if (d.getDay() === 0) return "Jest niedziela";
-  return "Dziś jest święto";        // święto wypadające w dzień powszedni
 }
 function dayLabel(d) {
   return { weekday: "dzień roboczy", saturday: "sobota", sunday: "niedziela / święto" }[dayType(d)];

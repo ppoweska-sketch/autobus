@@ -19,8 +19,10 @@ o której odjeżdża najbliższy autobus i za ile minut.
 Kolor napisu „Autobus za…" zmienia się sam: zielony = spokojnie, pomarańczowy = zbieraj się,
 czerwony = wyjdź natychmiast (liczone z czasu dojścia do przystanku).
 
-W soboty, niedziele i święta (także ruchome — Wielkanoc, Boże Ciało) pokazuje się
-ekran po prawej. W święto wypadające w dzień powszedni napis brzmi „Dziś jest święto".
+W soboty działa normalny ekran z rozkładem sobotnim. W niedziele i święta — także ruchome
+(Wielkanoc, Boże Ciało) — pokazuje się ekran po prawej. Święto wypadające w sobotę też
+liczy się jako dzień bez kursów.
+
 Gdy autobusów danego dnia już nie ma, zamiast bezużytecznego „za 43 godziny"
 pojawia się „Dziś autobus już nie jeździ" i godzina najbliższego kursu w kolejnym dniu.
 
@@ -28,14 +30,20 @@ pojawia się „Dziś autobus już nie jeździ" i godzina najbliższego kursu w 
 
 | | Dom | Szkoła |
 |---|---|---|
-| Przystanek | Widokowa 02 | Szkoła Łady 01 |
+| Przystanek | Widokowa 02 | Łady – Szkoła |
 | Współrzędne | 52.139126, 20.942015 | 52.127140, 20.961425 |
 | Promień | 300 m | 300 m |
 | Dojście | 10 min | 2 min |
-| Kursy (dni robocze) | 14 | 14 |
-| Weekendy | brak kursów | brak kursów |
+| Kursy w dni robocze | 14 | 14 (ze słupka **01**) |
+| Kursy w soboty | 4 | 4 (ze słupka **02**) |
+| Niedziele i święta | nie jeździ | nie jeździ |
 
 Odległość dom ↔ szkoła to 1879 m, więc promienie 300 m nie zachodzą na siebie.
+
+> **Do potwierdzenia:** godziny przy szkole pochodzą z dwóch różnych słupków — powszednie
+> ze „Szkoła Łady 01", sobotnie z „Łady – Szkoła 02". Dlatego na ekranie widnieje sama
+> nazwa „Łady – Szkoła", bez numeru: dopisanie złego numeru mogłoby wysłać dziecko
+> na przeciwną stronę drogi. Po ustaleniu właściwego słupka warto uzupełnić pole `stop`.
 
 ## Pliki
 
