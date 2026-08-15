@@ -118,7 +118,12 @@ w `DEFAULT_CONFIG` przed wrzuceniem na hosting (punkt 1).
 Dwa sposoby:
 
 - **Trwale:** popraw `DEFAULT_CONFIG` w `index.html`, wrzuć plik na GitHub jeszcze raz,
-  podnieś `CACHE = "autobus-v1"` w `sw.js` na `v2` (inaczej telefon pokaże starą wersję z pamięci).
+  podnieś numer w `CACHE = "autobus-vN"` w `sw.js` (inaczej telefon pokaże starą wersję z pamięci).
+
+  Po wgraniu GitHub Pages publikuje zmianę w ciągu 1–2 minut — postęp widać w zakładce
+  **Actions** repozytorium. Potem **otwórz aplikację na telefonie dwa razy**: przy pierwszym
+  uruchomieniu telefon pobiera nowe pliki w tle, ale pokazuje jeszcze poprzednią wersję.
+  Zamknij ją całkiem i włącz ponownie. Bez tego łatwo uznać, że zmiana nie weszła.
 - **Doraźnie, na jednym telefonie:** ⚙ w rogu ekranu → popraw → „Zapisz".
   Przycisk „🔗 Skopiuj link z tą konfiguracją" tworzy adres zawierający cały rozkład —
   po otwarciu go na innym telefonie ustawienia przeniosą się tam same.
