@@ -30,20 +30,21 @@ pojawia się „Dziś autobus już nie jeździ" i godzina najbliższego kursu w 
 
 | | Dom | Szkoła |
 |---|---|---|
-| Przystanek | Widokowa 02 | Łady – Szkoła |
+| Przystanek | Widokowa 02 | Łady – Szkoła 01 |
 | Współrzędne | 52.139126, 20.942015 | 52.127140, 20.961425 |
 | Promień | 300 m | 300 m |
 | Dojście | 10 min | 2 min |
-| Kursy w dni robocze | 14 | 14 (ze słupka **01**) |
-| Kursy w soboty | 4 | 4 (ze słupka **02**) |
+| Kursy w dni robocze | 14 | 14 |
+| Kursy w soboty | 4 | 4 |
 | Niedziele i święta | nie jeździ | nie jeździ |
 
 Odległość dom ↔ szkoła to 1879 m, więc promienie 300 m nie zachodzą na siebie.
 
-> **Do potwierdzenia:** godziny przy szkole pochodzą z dwóch różnych słupków — powszednie
-> ze „Szkoła Łady 01", sobotnie z „Łady – Szkoła 02". Dlatego na ekranie widnieje sama
-> nazwa „Łady – Szkoła", bez numeru: dopisanie złego numeru mogłoby wysłać dziecko
-> na przeciwną stronę drogi. Po ustaleniu właściwego słupka warto uzupełnić pole `stop`.
+> **Kontrola spójności:** godziny przy szkole są równo **+25 minut** względem odjazdów
+> spod domu — we wszystkich 18 kursach, zarówno w dni robocze, jak i w soboty.
+> To nie pomyłka: R3 jeździ pętlą i wraca tą samą trasą w drugą stronę.
+> Ta stała różnica jest dobrym testem przy wpisywaniu nowych godzin — jeśli nagle
+> przestanie się zgadzać, prawdopodobnie rozkład pochodzi z niewłaściwego słupka.
 
 ## Pliki
 
