@@ -41,6 +41,7 @@
   #at{font-size:66px;font-weight:850;letter-spacing:-2px;line-height:1;margin-top:6px}
   #count{font-size:32px;font-weight:800;margin-top:26px;line-height:1.2}
   .main.ok #count{color:var(--ok)} .main.warn #count{color:var(--warn)} .main.bad #count{color:var(--bad)}
+  #arrive{font-size:22px;font-weight:700;color:var(--accent);margin-top:14px;line-height:1.25}
   #leave{font-size:18px;color:var(--dim);margin-top:20px}
   #leave.urgent{color:var(--bad);font-weight:700}
 
@@ -86,6 +87,7 @@
     <div id="atLabel">Następny autobus o godzinie</div>
     <div id="at"></div>
     <div id="count"></div>
+    <div id="arrive"></div>
     <div id="leave"></div>
   </main>
 
@@ -110,12 +112,21 @@ const DEFAULT_CONFIG = {
       radius: 300,                     // metry
       walk: 10,                        // minut dojścia do przystanku
       stop: "Widokowa 02",
+      arriveLabel: "Będziesz w szkole o",    // pusty = nie pokazuj tej linijki
+      arriveWalk: 5,                         // minut z przystanku Łady – Szkoła 02 do szkoły
       lines: [
         { number: "R3", direction: "",
           weekday:  ["05:36","06:16","07:11","08:01","08:56","09:46",
                      "10:51","11:56","13:17","14:12","15:12","16:06","17:14","17:54"],
           saturday: ["08:46","10:46","13:46","15:46"],
-          sunday:   [] }                 // niedziele i święta — nie jeździ
+          sunday:   [],                  // niedziele i święta — nie jeździ
+          // godziny PRZYJAZDU na Łady – Szkoła 02 (przejazd trwa 18 min)
+          arrivals: {
+            weekday:  ["05:54","06:34","07:29","08:19","09:14","10:04",
+                       "11:09","12:14","13:35","14:30","15:30","16:24","17:32","18:12"],
+            saturday: ["09:04","11:04","14:04","16:04"],
+            sunday:   []
+          } }
       ]
     },
     {
@@ -196,6 +207,22 @@ function dayType(date) {
   return "weekday";
 }
 
+/* Pierwszy przyjazd późniejszy niż dany odjazd. Zwraca Date albo null. */
+function pierwszyPrzyjazdPo(line, type, base, minutyOdjazdu) {
+  let najlepsze = null;
+  for (const raw of line.arrivals?.[type] || []) {
+    const m = /^\s*(\d{1,2})[:.](\d{2})\s*$/.exec(raw);
+    if (!m) continue;
+    const minuty = Number(m[1]) * 60 + Number(m[2]);
+    if (minuty <= minutyOdjazdu) continue;
+    if (najlepsze === null || minuty < najlepsze) najlepsze = minuty;
+  }
+  if (najlepsze === null) return null;
+  const d = new Date(base);
+  d.setHours(0, najlepsze, 0, 0);
+  return d;
+}
+
 /* Najbliższe odjazdy z danego miejsca */
 function nextDepartures(place, now, count) {
   const out = [];
@@ -209,9 +236,13 @@ function nextDepartures(place, now, count) {
       for (const raw of line[type] || []) {
         const m = /^\s*(\d{1,2})[:.](\d{2})\s*$/.exec(raw);
         if (!m) continue;
+        const minutyOdjazdu = Number(m[1]) * 60 + Number(m[2]);
         const when = new Date(base);
-        when.setHours(0, Number(m[1]) * 60 + Number(m[2]), 0, 0);   // obsługuje też 24:15, 25:00
-        if (when.getTime() >= now.getTime() - 30000) found.push({ line, when });
+        when.setHours(0, minutyOdjazdu, 0, 0);                      // obsługuje też 24:15, 25:00
+        if (when.getTime() < now.getTime() - 30000) continue;
+        // Przyjazd dopasowujemy po godzinie, nie po pozycji w liście — dzięki temu
+        // ręczna edycja jednej z list nie rozjeżdża par odjazd/przyjazd.
+        found.push({ line, when, arrive: pierwszyPrzyjazdPo(line, type, base, minutyOdjazdu) });
       }
     }
     found.sort((a, b) => a.when - b.when);
@@ -277,12 +308,19 @@ function normalize(cfg) {
     radius: Number(p.radius) > 0 ? Number(p.radius) : 300,
     walk: Number(p.walk) >= 0 ? Number(p.walk) : 0,
     stop: p.stop || "",
+    arriveLabel: p.arriveLabel || "",
+    arriveWalk: Number(p.arriveWalk) >= 0 ? Number(p.arriveWalk) : 0,
     lines: (Array.isArray(p.lines) ? p.lines : []).map(l => ({
       number: String(l.number ?? "?"),
       direction: l.direction || "",
       weekday: Array.isArray(l.weekday) ? l.weekday : [],
       saturday: Array.isArray(l.saturday) ? l.saturday : [],
-      sunday: Array.isArray(l.sunday) ? l.sunday : []
+      sunday: Array.isArray(l.sunday) ? l.sunday : [],
+      arrivals: {
+        weekday: Array.isArray(l.arrivals?.weekday) ? l.arrivals.weekday : [],
+        saturday: Array.isArray(l.arrivals?.saturday) ? l.arrivals.saturday : [],
+        sunday: Array.isArray(l.arrivals?.sunday) ? l.arrivals.sunday : []
+      }
     }))
   }));
   return { places: places.length ? places : structuredClone(DEFAULT_CONFIG).places };
@@ -361,6 +399,7 @@ function render() {
     setText("#atLabel", "");
     setText("#at", "");
     setText("#count", "");
+    setText("#arrive", "");
     setText("#leave", "");
     setClass("#main", "main wolne");
     setText("#foot", hhmm(now));
@@ -410,6 +449,7 @@ function render() {
     setText("#atLabel", "");
     setText("#at", "");
     setText("#count", "");
+    setText("#arrive", "");
     setText("#leave", "");
     setClass("#main", "main");
     setText("#foot", hhmm(now));
@@ -434,6 +474,7 @@ function render() {
     setText("#atLabel", "");
     setText("#at", "Brak autobusów");
     setText("#count", "");
+    setText("#arrive", "");
     setText("#leave", "Na dziś i najbliższe dni nie ma nic w rozkładzie.");
     setClass("#main", "main");
   } else {
@@ -455,6 +496,14 @@ function render() {
     } else {
       setText("#count", mins <= 0 ? "Autobus odjeżdża TERAZ" : "Autobus za " + minutesWord(mins));
       setClass("#main", "main " + (mins <= walk ? "bad" : mins <= walk + 4 ? "warn" : "ok"));
+    }
+
+    // 6. Będziesz w szkole o 07:34  (przyjazd autobusu + dojście z przystanku)
+    if (place.arriveLabel && d.arrive && sameDay) {
+      const naMiejscu = new Date(d.arrive.getTime() + (place.arriveWalk || 0) * 60000);
+      setText("#arrive", place.arriveLabel + " " + hhmm(naMiejscu));
+    } else {
+      setText("#arrive", "");
     }
 
     setText("#leave", walk > 0 && sameDay
@@ -544,6 +593,15 @@ function openSettings() {
           "<label>Soboty</label><textarea data-l='saturday'>" + line.saturday.join(" ") + "</textarea>" +
           "<label>Niedziele i święta</label><textarea data-l='sunday'>" + line.sunday.join(" ") + "</textarea>" +
           '<div class="hint">Godziny w formacie <b>07:25</b>, oddzielone spacją, przecinkiem lub nową linią. Kursy po północy zapisz jako 24:15, 25:00.</div>' +
+          // godziny przyjazdu edytujemy tylko tam, gdzie ekran je pokazuje
+          (place.arriveLabel
+            ? "<label>Przyjazd na przystanek docelowy — dni robocze</label>" +
+              "<textarea data-a='weekday'>" + line.arrivals.weekday.join(" ") + "</textarea>" +
+              "<label>Przyjazd — soboty</label>" +
+              "<textarea data-a='saturday'>" + line.arrivals.saturday.join(" ") + "</textarea>" +
+              '<div class="hint">Z tego liczy się napis „' + esc(place.arriveLabel) +
+              ' …”: godzina przyjazdu plus ' + place.arriveWalk + ' min dojścia.</div>'
+            : "") +
           '<button class="btn danger" data-del="1">Usuń linię ' + esc(line.number) + "</button>";
 
         lb.querySelector("[data-del]").onclick = ev => {
@@ -569,17 +627,21 @@ function openSettings() {
         const f = el.dataset.f;
         place[f] = ["lat", "lon", "radius", "walk"].includes(f) ? parseFloat(el.value) || 0 : el.value;
       }
+      const godziny = el => el.value
+        .split(/[\s,;]+/).map(s => s.trim()).filter(Boolean)
+        .map(s => { const m = /^(\d{1,2})[:.](\d{1,2})$/.exec(s); return m ? pad(m[1]) + ":" + pad(m[2]) : s; })
+        .filter(s => /^\d{1,2}:\d{2}$/.test(s))
+        .sort();
+
       const boxes = linesWrap.querySelectorAll(".lineBox");
       boxes.forEach((lb, li) => {
         if (!place.lines[li]) return;
         place.lines[li].number = lb.querySelector('[data-l="number"]').value.trim();
         place.lines[li].direction = lb.querySelector('[data-l="direction"]').value.trim();
         for (const day of ["weekday", "saturday", "sunday"]) {
-          place.lines[li][day] = lb.querySelector('[data-l="' + day + '"]').value
-            .split(/[\s,;]+/).map(s => s.trim()).filter(Boolean)
-            .map(s => { const m = /^(\d{1,2})[:.](\d{1,2})$/.exec(s); return m ? pad(m[1]) + ":" + pad(m[2]) : s; })
-            .filter(s => /^\d{1,2}:\d{2}$/.test(s))
-            .sort();
+          place.lines[li][day] = godziny(lb.querySelector('[data-l="' + day + '"]'));
+          const pole = lb.querySelector('[data-a="' + day + '"]');
+          if (pole) place.lines[li].arrivals[day] = godziny(pole);
         }
       });
     };

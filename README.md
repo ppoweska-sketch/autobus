@@ -13,8 +13,14 @@ o której odjeżdża najbliższy autobus i za ile minut.
            07:11
 
     Autobus za 11 minut
+  Będziesz w szkole o 07:34
         Wyjdź o 07:01
 ```
+
+Linijka „Będziesz w szkole o…" to **godzina przyjazdu autobusu** na przystanek
+Łady – Szkoła 02 **plus 5 minut dojścia** z przystanku do szkoły. Godzina, a nie
+„za X minut", bo tak łatwiej zestawić ją z planem lekcji. Pokazuje się tylko przy
+domu — przy szkole nie, bo nie mamy godzin przyjazdu w drugą stronę.
 
 Kolor napisu „Autobus za…" zmienia się sam: zielony = spokojnie, pomarańczowy = zbieraj się,
 czerwony = wyjdź natychmiast (liczone z czasu dojścia do przystanku).
@@ -40,11 +46,21 @@ pojawia się „Dziś autobus już nie jeździ" i godzina najbliższego kursu w 
 
 Odległość dom ↔ szkoła to 1879 m, więc promienie 300 m nie zachodzą na siebie.
 
-> **Kontrola spójności:** godziny przy szkole są równo **+25 minut** względem odjazdów
-> spod domu — we wszystkich 18 kursach, zarówno w dni robocze, jak i w soboty.
-> To nie pomyłka: R3 jeździ pętlą i wraca tą samą trasą w drugą stronę.
-> Ta stała różnica jest dobrym testem przy wpisywaniu nowych godzin — jeśli nagle
-> przestanie się zgadzać, prawdopodobnie rozkład pochodzi z niewłaściwego słupka.
+### Dwa słupki przy szkole — i dlaczego oba są potrzebne
+
+R3 jeździ pętlą i wraca tą samą trasą w drugą stronę, więc przy szkole są dwa słupki
+o różnym przeznaczeniu. Oba rozkłady mają idealnie stałe przesunięcie względem
+odjazdów spod domu, we wszystkich 18 kursach:
+
+| Słupek | Rola | Przesunięcie od odjazdu z Widokowej 02 |
+|---|---|---|
+| **Łady – Szkoła 02** | przyjazd — tu dziecko wysiada rano | **+18 min** |
+| **Łady – Szkoła 01** | odjazd — stąd wraca do domu | **+25 min** |
+
+> **Kontrola spójności przy wpisywaniu nowych godzin:** jeśli któreś z tych przesunięć
+> przestanie być stałe, rozkład prawie na pewno pochodzi z niewłaściwego słupka.
+> Ta reguła już raz uratowała pomiar — sobotnie godziny były najpierw wpisane
+> ze słupka 02 (+18) tam, gdzie powinny być z 01 (+25).
 
 ## Pliki
 
