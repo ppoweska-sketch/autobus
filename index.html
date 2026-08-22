@@ -499,7 +499,9 @@ function render() {
     }
 
     // 6. Będziesz w szkole o 07:34  (przyjazd autobusu + dojście z przystanku)
-    if (place.arriveLabel && d.arrive && sameDay) {
+    //    Pokazujemy TAKŻE dla kursu z następnego dnia — skoro wyżej piszemy
+    //    "następny autobus w poniedziałek", to godzina przyjazdu dotyczy tego samego kursu.
+    if (place.arriveLabel && d.arrive) {
       const naMiejscu = new Date(d.arrive.getTime() + (place.arriveWalk || 0) * 60000);
       setText("#arrive", place.arriveLabel + " " + hhmm(naMiejscu));
     } else {
