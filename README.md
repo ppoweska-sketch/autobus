@@ -134,13 +134,23 @@ w `DEFAULT_CONFIG` przed wrzuceniem na hosting (punkt 1).
 
 Dwa sposoby:
 
-- **Trwale:** popraw `DEFAULT_CONFIG` w `index.html`, wrzuć plik na GitHub jeszcze raz,
-  podnieś numer w `CACHE = "autobus-vN"` w `sw.js` (inaczej telefon pokaże starą wersję z pamięci).
+- **Trwale:** popraw `DEFAULT_CONFIG` w `index.html` i podnieś **dwa numery**:
+  - `version:` na górze `DEFAULT_CONFIG` — bez tego telefon z własną zapisaną kopią
+    (ktoś nacisnął „Zapisz” w ⚙) zignoruje zmianę na zawsze;
+  - `CACHE = "autobus-vN"` w `sw.js` — bez tego telefon weźmie stary plik z pamięci offline.
 
-  Po wgraniu GitHub Pages publikuje zmianę w ciągu 1–2 minut — postęp widać w zakładce
-  **Actions** repozytorium. Potem **otwórz aplikację na telefonie dwa razy**: przy pierwszym
-  uruchomieniu telefon pobiera nowe pliki w tle, ale pokazuje jeszcze poprzednią wersję.
-  Zamknij ją całkiem i włącz ponownie. Bez tego łatwo uznać, że zmiana nie weszła.
+  Potem wgraj oba pliki na GitHub. Publikacja trwa 1–2 minuty, postęp widać w zakładce
+  **Actions** repozytorium. Aplikacja na telefonie **sama się przeładuje**, gdy zobaczy
+  nową wersję (sprawdza przy starcie i raz na godzinę).
+
+### Jak sprawdzić, czy telefon ma aktualną wersję
+
+Na dole ekranu, w szarej linijce, jest numer — np. `… · v5`. Musi się zgadzać
+z `version:` w `index.html`. Jeśli jest mniejszy, telefon wciąż ma starą kopię.
+
+To nie jest ozdobnik: raz już zniknęła przez to linijka „Będziesz w szkole o…" —
+kod był poprawny i wgrany, ale telefon go nie widział, a z samego ekranu nie dało się
+tego odróżnić od błędu w kodzie.
 - **Doraźnie, na jednym telefonie:** ⚙ w rogu ekranu → popraw → „Zapisz".
   Przycisk „🔗 Skopiuj link z tą konfiguracją" tworzy adres zawierający cały rozkład —
   po otwarciu go na innym telefonie ustawienia przeniosą się tam same.

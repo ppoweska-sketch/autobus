@@ -103,6 +103,11 @@
    DOMYŚLNA KONFIGURACJA  —  podmień na własne dane (albo edytuj w ⚙)
    ======================================================================= */
 const DEFAULT_CONFIG = {
+  // PODNIEŚ przy każdej zmianie rozkładu w tym pliku.
+  // Telefon, który ma własną zapisaną kopię (bo ktoś nacisnął „Zapisz” w ⚙),
+  // wyrzuci ją i weźmie tę nowszą. Bez tego poprawki tutaj byłyby ignorowane
+  // i aplikacja w nieskończoność pokazywałaby stary rozkład.
+  version: 5,
   places: [
     {
       id: "dom", name: "Dom", emoji: "🏠",
@@ -147,6 +152,9 @@ const DEFAULT_CONFIG = {
     }
   ]
 };
+
+/* Widoczny znacznik wersji — pozwala sprawdzić, czy telefon ma aktualny plik. */
+const WERSJA = " · v" + DEFAULT_CONFIG.version;
 
 /* ============================ narzędzia ============================ */
 const $ = (s, r = document) => r.querySelector(s);
@@ -323,7 +331,10 @@ function normalize(cfg) {
       }
     }))
   }));
-  return { places: places.length ? places : structuredClone(DEFAULT_CONFIG).places };
+  return {
+    version: Number(cfg?.version) || 0,
+    places: places.length ? places : structuredClone(DEFAULT_CONFIG).places
+  };
 }
 
 function loadConfig() {
@@ -336,10 +347,16 @@ function loadConfig() {
       return cfg;
     } catch (e) { console.warn("Zły link konfiguracyjny", e); }
   }
-  // 2) zapisana lokalnie
+  // 2) zapisana lokalnie — ale tylko jeśli nie jest starsza niż ta wbudowana w plik
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return normalize(JSON.parse(saved));
+    if (saved) {
+      const cfg = normalize(JSON.parse(saved));
+      if (cfg.version >= (DEFAULT_CONFIG.version || 0)) return cfg;
+      console.info("Zapisana konfiguracja v" + cfg.version + " jest starsza niż wbudowana v"
+                   + DEFAULT_CONFIG.version + " — biorę nowszą.");
+      localStorage.removeItem(STORAGE_KEY);
+    }
   } catch (e) { console.warn("Zła zapisana konfiguracja", e); }
   // 3) domyślna
   return normalize(structuredClone(DEFAULT_CONFIG));
@@ -347,6 +364,7 @@ function loadConfig() {
 
 function saveConfig(cfg) {
   config = normalize(cfg);
+  config.version = DEFAULT_CONFIG.version || 0;   // ręczny zapis = wersja bieżąca
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(config)); }
   catch (e) { alert("Nie udało się zapisać: " + e.message); }
 }
@@ -402,7 +420,7 @@ function render() {
     setText("#arrive", "");
     setText("#leave", "");
     setClass("#main", "main wolne");
-    setText("#foot", hhmm(now));
+    setText("#foot", hhmm(now) + WERSJA);
     return;
   }
 
@@ -452,7 +470,7 @@ function render() {
     setText("#arrive", "");
     setText("#leave", "");
     setClass("#main", "main");
-    setText("#foot", hhmm(now));
+    setText("#foot", hhmm(now) + WERSJA);
     return;
   }
 
@@ -518,7 +536,7 @@ function render() {
 
   // --- stopka ---
   const acc = position ? " · GPS ±" + Math.round(position.coords.accuracy) + " m" : "";
-  setText("#foot", place.stop + " · " + hhmm(now) + " · " + dayLabel(now) + acc);
+  setText("#foot", place.stop + " · " + hhmm(now) + " · " + dayLabel(now) + acc + WERSJA);
 }
 
 function esc(s) {
@@ -704,8 +722,27 @@ render();
 setInterval(render, 1000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
 
+/* Aktualizacja bez udziału użytkownika.
+   Wcześniej trzeba było otworzyć aplikację dwa razy: za pierwszym razem telefon
+   pobierał nowe pliki w tle, ale pokazywał jeszcze stare. Jeśli ktoś tego nie
+   zrobił, tygodniami widział poprzednią wersję — i tak właśnie zniknęła linijka
+   „Będziesz w szkole o…”. Teraz strona sama się przeładowuje, gdy nowa wersja
+   przejmie kontrolę. */
 if ("serviceWorker" in navigator && window.isSecureContext) {
-  navigator.serviceWorker.register("sw.js").catch(e => console.warn("SW:", e));
+  let juzPrzeladowano = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (juzPrzeladowano) return;      // controllerchange potrafi przyjść dwa razy
+    juzPrzeladowano = true;
+    location.reload();
+  });
+  navigator.serviceWorker.register("sw.js")
+    .then(reg => {
+      // brak zasięgu nie może wywalić aplikacji — dlatego każde sprawdzenie z catch
+      const sprawdz = () => reg.update().catch(() => {});
+      sprawdz();                                   // od razu przy starcie
+      setInterval(sprawdz, 60 * 60 * 1000);        // i raz na godzinę
+    })
+    .catch(e => console.warn("SW:", e));
 }
 </script>
 </body>
