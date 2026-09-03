@@ -26,6 +26,24 @@
 
   #gear{position:absolute;top:calc(var(--safe-t) + 10px);right:12px;
     background:none;border:none;color:#42506f;font-size:20px;width:44px;height:44px}
+  #kalendarz{position:absolute;top:calc(var(--safe-t) + 10px);left:12px;
+    background:none;border:none;font-size:20px;width:44px;height:44px;opacity:.55}
+
+  /* ---- plan tygodnia ---- */
+  #week{position:fixed;inset:0;background:var(--bg);overflow-y:auto;z-index:50;
+    padding:calc(var(--safe-t) + 12px) 14px calc(var(--safe-b) + 30px);-webkit-overflow-scrolling:touch}
+  #week h1{font-size:24px;margin:0 0 16px}
+  .dzien{background:var(--card);border-radius:16px;padding:12px 14px;margin-bottom:10px}
+  .dzien.dzis{background:var(--card2);border:2px solid var(--accent)}
+  .dzien h3{margin:0 0 8px;font-size:17px}
+  .znacznik{background:var(--accent);color:#04122b;font-size:12px;font-weight:800;
+    padding:2px 8px;border-radius:8px;vertical-align:middle;margin-left:6px}
+  .etap{display:flex;align-items:baseline;gap:8px;padding:5px 0;font-size:15px}
+  .etap .opis{color:var(--dim);flex:1;min-width:0}
+  .etap b{font-size:19px;font-variant-numeric:tabular-nums}
+  .etap .mala{color:var(--dim);font-size:12px;min-width:104px;text-align:right}
+  .etap.lekcje{border-top:1px solid #2b3652;border-bottom:1px solid #2b3652;margin:4px 0}
+  .etap.lekcje b{color:var(--accent)}
 
   .banner{background:var(--card2);border-radius:14px;padding:12px 14px;font-size:15px;
     color:var(--dim);margin:0 0 14px;line-height:1.4}
@@ -76,6 +94,7 @@
 
 <div id="app">
   <button id="gear" aria-label="Ustawienia">⚙</button>
+  <button id="kalendarz" aria-label="Plan tygodnia">📅</button>
 
   <div id="banner" class="banner hidden"></div>
   <div id="switch" class="switch hidden"></div>
@@ -95,6 +114,7 @@
 </div>
 
 <div id="settings" class="hidden"></div>
+<div id="week" class="hidden"></div>
 
 <script>
 "use strict";
@@ -107,7 +127,18 @@ const DEFAULT_CONFIG = {
   // Telefon, który ma własną zapisaną kopię (bo ktoś nacisnął „Zapisz” w ⚙),
   // wyrzuci ją i weźmie tę nowszą. Bez tego poprawki tutaj byłyby ignorowane
   // i aplikacja w nieskończoność pokazywałaby stary rozkład.
-  version: 5,
+  version: 6,
+
+  // Plan lekcji — z niego liczy się ekran tygodnia (📅).
+  // Klucz to dzień tygodnia: 1 = poniedziałek … 5 = piątek.
+  lekcje: {
+    1: { start: "08:35", koniec: "13:05" },
+    2: { start: "07:45", koniec: "13:05" },
+    3: { start: "10:20", koniec: "15:55" },
+    4: { start: "11:20", koniec: "15:55" },
+    5: { start: "10:20", koniec: "15:55" }
+  },
+
   places: [
     {
       id: "dom", name: "Dom", emoji: "🏠",
@@ -115,7 +146,7 @@ const DEFAULT_CONFIG = {
       goingTo: "Jedziesz do szkoły",   // dokąd jedzie autobus z tego przystanku
       lat: 52.139126, lon: 20.942015,  // ← współrzędne domu
       radius: 300,                     // metry
-      walk: 10,                        // minut dojścia do przystanku
+      walk: 15,                        // minut dojścia do przystanku
       stop: "Widokowa 02",
       arriveLabel: "Będziesz w szkole o",    // pusty = nie pokazuj tej linijki
       arriveWalk: 5,                         // minut z przystanku Łady – Szkoła 02 do szkoły
@@ -331,8 +362,16 @@ function normalize(cfg) {
       }
     }))
   }));
+  const lekcje = {};
+  for (const d of [1, 2, 3, 4, 5]) {
+    const l = cfg?.lekcje?.[d];
+    if (l && /^\d{1,2}:\d{2}$/.test(l.start || "") && /^\d{1,2}:\d{2}$/.test(l.koniec || "")) {
+      lekcje[d] = { start: l.start, koniec: l.koniec };
+    }
+  }
   return {
     version: Number(cfg?.version) || 0,
+    lekcje,
     places: places.length ? places : structuredClone(DEFAULT_CONFIG).places
   };
 }
@@ -398,6 +437,7 @@ function resolvePlace() {
 /* ============================ rysowanie ============================ */
 function render() {
   if (!$("#settings").classList.contains("hidden")) return;   // ustawienia otwarte
+  if (!$("#week").classList.contains("hidden")) return;       // plan tygodnia otwarty
   const now = new Date();
 
   // --- niedziela / święto: autobus nie jeździ, ekran nie zależy od lokalizacji ---
@@ -549,6 +589,82 @@ function formatDist(m) {
 }
 function dayLabel(d) {
   return { weekday: "dzień roboczy", saturday: "sobota", sunday: "niedziela / święto" }[dayType(d)];
+}
+
+/* ======================= plan całego tygodnia ======================= */
+const DNI_PL = { 1: "Poniedziałek", 2: "Wtorek", 3: "Środa", 4: "Czwartek", 5: "Piątek" };
+const naMinuty = s => Number(s.slice(0, s.indexOf(":"))) * 60 + Number(s.slice(s.indexOf(":") + 1));
+const naGodzine = t => pad(Math.floor(t / 60)) + ":" + pad(t % 60);
+
+/* Dla jednego dnia: który kurs rano, który po lekcjach.
+   Te same reguły co w PDF-ie — rano ostatni kurs zdążający przed dzwonkiem,
+   po lekcjach pierwszy, na który da się dojść. */
+function planDnia(dzien) {
+  const l = config.lekcje?.[dzien];
+  const dom = config.places.find(p => p.arriveLabel);
+  const szkola = config.places.find(p => p !== dom);
+  if (!l || !dom || !szkola) return null;
+
+  const linia = dom.lines[0] || {};
+  const powrotna = (szkola.lines[0] || {}).weekday || [];
+  const start = naMinuty(l.start), koniec = naMinuty(l.koniec);
+
+  let rano = null;
+  (linia.weekday || []).forEach((o, i) => {
+    const p = (linia.arrivals?.weekday || [])[i];
+    if (!p) return;
+    const wSzkole = naMinuty(p) + (dom.arriveWalk || 0);
+    if (wSzkole <= start) rano = { odjazd: o, wSzkole, zapas: start - wSzkole };
+  });
+
+  const powrot = powrotna.find(d => naMinuty(d) >= koniec + (szkola.walk || 0));
+
+  return {
+    dzien, nazwa: DNI_PL[dzien], start: l.start, koniec: l.koniec,
+    zDomu: rano ? naGodzine(naMinuty(rano.odjazd) - (dom.walk || 0)) : null,
+    odjazd: rano ? rano.odjazd : null,
+    wSzkole: rano ? naGodzine(rano.wSzkole) : null,
+    zapas: rano ? rano.zapas : null,
+    powrot: powrot || null,
+    czekanie: powrot ? naMinuty(powrot) - koniec : null
+  };
+}
+
+function pokazTydzien() {
+  const box = $("#week");
+  const dzisiaj = new Date().getDay();
+  let html = '<h1>Plan tygodnia</h1>';
+
+  for (const d of [1, 2, 3, 4, 5]) {
+    const p = planDnia(d);
+    if (!p) continue;
+    const dzis = d === dzisiaj ? " dzis" : "";
+    html +=
+      '<div class="dzien' + dzis + '">' +
+      '<h3>' + p.nazwa + (dzis ? ' <span class="znacznik">dziś</span>' : '') + '</h3>' +
+      (p.odjazd
+        ? '<div class="etap"><span class="opis">Wyjdź z domu</span><b>' + p.zDomu + '</b></div>' +
+          '<div class="etap"><span class="opis">Odjazd autobusu</span><b>' + p.odjazd + '</b></div>' +
+          '<div class="etap"><span class="opis">W szkole jesteś</span><b>' + p.wSzkole + '</b>' +
+          '<span class="mala">' + p.zapas + ' min przed lekcjami</span></div>'
+        : '<div class="etap"><span class="opis">Rano</span><b>brak kursu</b></div>') +
+      '<div class="etap lekcje"><span class="opis">Lekcje</span><b>' +
+        p.start + ' – ' + p.koniec + '</b></div>' +
+      (p.powrot
+        ? '<div class="etap"><span class="opis">Powrót — odjazd</span><b>' + p.powrot + '</b>' +
+          '<span class="mala">' + p.czekanie + ' min czekania</span></div>'
+        : '<div class="etap"><span class="opis">Powrót</span><b>brak kursu</b></div>') +
+      '</div>';
+  }
+
+  html += '<div class="hint" style="margin-top:14px">Godziny liczone z rozkładu: rano ostatni ' +
+          'kurs, który dowozi przed dzwonkiem; po lekcjach pierwszy, na który da się zdążyć.</div>';
+  box.innerHTML = html;
+  const zamknij = document.createElement("button");
+  zamknij.className = "btn"; zamknij.textContent = "Zamknij";
+  zamknij.onclick = () => { box.classList.add("hidden"); box.innerHTML = ""; render(); };
+  box.appendChild(zamknij);
+  box.classList.remove("hidden");
 }
 
 /* ============================ ustawienia ============================ */
@@ -717,6 +833,7 @@ function closeSettings() {
 /* ============================ start ============================ */
 config = loadConfig();
 $("#gear").onclick = openSettings;
+$("#kalendarz").onclick = pokazTydzien;
 startGeolocation();
 render();
 setInterval(render, 1000);
