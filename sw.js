@@ -1,21 +1,26 @@
 /* Service worker — pozwala uruchomić aplikację bez internetu.
    Po zmianie plików podnieś numer wersji, żeby telefon pobrał nowe. */
-const CACHE = "autobus-v7";
+const CACHE = "autobus-v8";
 const FILES = [
   "./",
   "./index.html",
   "./marysia.html",
   "./janek.html",
+  "./alicja.html",
   "./autobus.css",
   "./autobus.js",
   "./manifest-marysia.webmanifest",
   "./manifest-janek.webmanifest",
+  "./manifest-alicja.webmanifest",
   "./icon-180.png",
   "./icon-192.png",
   "./icon-512.png",
   "./icon-janek-180.png",
   "./icon-janek-192.png",
-  "./icon-janek-512.png"
+  "./icon-janek-512.png",
+  "./icon-alicja-180.png",
+  "./icon-alicja-192.png",
+  "./icon-alicja-512.png"
 ];
 
 self.addEventListener("install", event => {
@@ -49,6 +54,7 @@ self.addEventListener("fetch", event => {
         if (hit) return hit;
         const url = new URL(event.request.url);
         const zapas = url.pathname.includes("janek") ? "./janek.html"
+                    : url.pathname.includes("alicja") ? "./alicja.html"
                     : url.pathname.includes("marysia") ? "./marysia.html"
                     : "./index.html";
         return caches.match(zapas);

@@ -11,7 +11,7 @@
 <link rel="icon" href="icon-192.png">
 <link rel="stylesheet" href="autobus.css">
 <style>
-  .wybor{display:flex;flex-direction:column;gap:16px;margin-top:12vh}
+  .wybor{display:flex;flex-direction:column;gap:14px;margin-top:8vh}
   .wybor a{display:flex;align-items:center;gap:16px;text-decoration:none;
     background:var(--card);border-radius:20px;padding:22px 24px;color:var(--txt)}
   .wybor img{width:56px;height:56px;border-radius:14px}
@@ -28,6 +28,9 @@
 <div class="wybor">
   <a href="marysia.html" data-kto="marysia">
     <img src="icon-192.png" alt=""><b>Marysia</b>
+  </a>
+  <a href="alicja.html" data-kto="alicja">
+    <img src="icon-alicja-192.png" alt=""><b>Alicja</b>
   </a>
   <a href="janek.html" data-kto="janek">
     <img src="icon-janek-192.png" alt=""><b>Janek</b>
@@ -51,7 +54,7 @@ if (location.search.includes("wybierz")) {
   // do ekranu głównego POD TYM adresem nie wymaga klikania przy każdym starcie.
   let kto = null;
   try { kto = localStorage.getItem(KLUCZ); } catch (e) {}
-  if (kto === "marysia" || kto === "janek") location.replace(kto + ".html");
+  if (["marysia", "alicja", "janek"].includes(kto)) location.replace(kto + ".html");
 }
 
 for (const a of document.querySelectorAll(".wybor a")) {

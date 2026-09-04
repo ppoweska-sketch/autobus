@@ -3,64 +3,90 @@
 /* =======================================================================
    DOMYŚLNA KONFIGURACJA  —  podmień na własne dane (albo edytuj w ⚙)
    ======================================================================= */
-/* Które dziecko — ustawia to plik HTML (marysia.html / janek.html)
-   przed wczytaniem tego skryptu. Rozkład autobusu jest wspólny,
-   różni się TYLKO plan lekcji poniżej. */
+/* Które dziecko — ustawia to plik HTML (marysia.html / janek.html / alicja.html)
+   przed wczytaniem tego skryptu. */
 const DZIECKO = (window.DZIECKO || "marysia").toLowerCase();
 
-/* Plany lekcji. Klucz to dzień tygodnia: 1 = poniedziałek … 5 = piątek.
-   Z nich liczy się ekran tygodnia (📅). Zmiana planu = zmiana TU i podniesienie
-   `version` poniżej, inaczej telefon z zapisaną kopią zignoruje poprawkę. */
-const PLANY_LEKCJI = {
-  marysia: {
-    imie: "Marysia",
-    1: { start: "08:35", koniec: "13:05" },
-    2: { start: "07:45", koniec: "13:05" },
-    3: { start: "10:20", koniec: "15:55" },
-    4: { start: "11:20", koniec: "15:55" },
-    5: { start: "10:20", koniec: "15:55" }
+/* ---------------------------------------------------------------------
+   PRZYSTANKI DOMOWE
+   Podoluszyn Nowy 02 leży 14 min ZA Widokową 02 na tej samej trasie tego
+   samego kursu — dlatego godziny przyjazdu do szkoły (niżej) są wspólne.
+   --------------------------------------------------------------------- */
+const PRZYSTANKI_DOMOWE = {
+  widokowa: {
+    stop: "Widokowa 02",
+    walk: 15,                        // minut dojścia z domu na przystanek
+    weekday:  ["05:36","06:16","07:11","08:01","08:56","09:46",
+               "10:51","11:56","13:17","14:12","15:12","16:06","17:14","17:54"],
+    saturday: ["08:46","10:46","13:46","15:46"]
   },
-  janek: {
-    imie: "Janek",
+  podoluszyn: {
+    stop: "Podoluszyn Nowy 02",
+    walk: 5,
+    weekday:  ["05:50","06:30","07:25","08:15","09:10","10:00",
+               "11:05","12:10","13:31","14:26","15:26","16:20","17:28","18:08"],
+    saturday: ["09:00","11:00","14:00","16:00"]
+  }
+};
+
+/* Godziny PRZYJAZDU na Łady – Szkoła 02. Wspólne dla wszystkich przystanków
+   domowych, bo to ten sam autobus — zmienia się tylko miejsce wsiadania. */
+const PRZYJAZDY_DO_SZKOLY = {
+  weekday:  ["05:54","06:34","07:29","08:19","09:14","10:04",
+             "11:09","12:14","13:35","14:30","15:30","16:24","17:32","18:12"],
+  saturday: ["09:04","11:04","14:04","16:04"],
+  sunday:   []
+};
+
+/* Dzieci: imię, z którego przystanku jeżdżą i ich plan lekcji.
+   Klucz planu to dzień tygodnia: 1 = poniedziałek … 5 = piątek. */
+const LEKCJE_MARYSI = {
+  1: { start: "08:35", koniec: "13:05" },
+  2: { start: "07:45", koniec: "13:05" },
+  3: { start: "10:20", koniec: "15:55" },
+  4: { start: "11:20", koniec: "15:55" },
+  5: { start: "10:20", koniec: "15:55" }
+};
+
+const DZIECI = {
+  marysia: { imie: "Marysia", przystanek: "widokowa",   lekcje: LEKCJE_MARYSI },
+  alicja:  { imie: "Alicja",  przystanek: "podoluszyn", lekcje: LEKCJE_MARYSI },
+  janek:   { imie: "Janek",   przystanek: "widokowa", lekcje: {
     1: { start: "07:45", koniec: "11:05" },
     2: { start: "07:45", koniec: "11:05" },
     3: { start: "07:45", koniec: "13:05" },
     4: { start: "09:30", koniec: "14:05" },
     5: { start: "12:20", koniec: "15:55" }
-  }
+  } }
 };
-const IMIE = (PLANY_LEKCJI[DZIECKO] || PLANY_LEKCJI.marysia).imie;
+
+const PROFIL = DZIECI[DZIECKO] || DZIECI.marysia;
+const IMIE = PROFIL.imie;
+const PRZYSTANEK = PRZYSTANKI_DOMOWE[PROFIL.przystanek];
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 7,
+  version: 8,
 
-  lekcje: PLANY_LEKCJI[DZIECKO] || PLANY_LEKCJI.marysia,
+  lekcje: PROFIL.lekcje,
 
   places: [
     {
       id: "dom", name: "Dom", emoji: "🏠",
-      inPlace: "Jesteś w domu",        // napis, gdy dziecko jest w tym miejscu
-      goingTo: "Jedziesz do szkoły",   // dokąd jedzie autobus z tego przystanku
+      inPlace: "Jesteś w domu",
+      goingTo: "Jedziesz do szkoły",
       lat: 52.139126, lon: 20.942015,  // ← współrzędne domu
-      radius: 300,                     // metry
-      walk: 15,                        // minut dojścia do przystanku
-      stop: "Widokowa 02",
-      arriveLabel: "Będziesz w szkole o",    // pusty = nie pokazuj tej linijki
-      arriveWalk: 5,                         // minut z przystanku Łady – Szkoła 02 do szkoły
+      radius: 300,
+      walk: PRZYSTANEK.walk,
+      stop: PRZYSTANEK.stop,
+      arriveLabel: "Będziesz w szkole o",
+      arriveWalk: 5,                   // minut z przystanku Łady – Szkoła 02 do szkoły
       lines: [
         { number: "R3", direction: "",
-          weekday:  ["05:36","06:16","07:11","08:01","08:56","09:46",
-                     "10:51","11:56","13:17","14:12","15:12","16:06","17:14","17:54"],
-          saturday: ["08:46","10:46","13:46","15:46"],
-          sunday:   [],                  // niedziele i święta — nie jeździ
-          // godziny PRZYJAZDU na Łady – Szkoła 02 (przejazd trwa 18 min)
-          arrivals: {
-            weekday:  ["05:54","06:34","07:29","08:19","09:14","10:04",
-                       "11:09","12:14","13:35","14:30","15:30","16:24","17:32","18:12"],
-            saturday: ["09:04","11:04","14:04","16:04"],
-            sunday:   []
-          } }
+          weekday:  PRZYSTANEK.weekday,
+          saturday: PRZYSTANEK.saturday,
+          sunday:   [],
+          arrivals: PRZYJAZDY_DO_SZKOLY }
       ]
     },
     {
@@ -76,7 +102,7 @@ const DEFAULT_CONFIG = {
           weekday:  ["06:01","06:41","07:36","08:26","09:21","10:11",
                      "11:16","12:21","13:42","14:37","15:37","16:31","17:39","18:19"],
           saturday: ["09:11","11:11","14:11","16:11"],
-          sunday:   [] }                 // niedziele i święta — nie jeździ
+          sunday:   [] }
       ]
     }
   ]

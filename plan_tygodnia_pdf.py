@@ -31,45 +31,64 @@ WYNIK = Path(__file__).with_name(f"plan_tygodnia_{DZIECKO}.pdf")
 pdfmetrics.registerFont(TTFont("PL", "/System/Library/Fonts/Supplemental/Arial.ttf"))
 pdfmetrics.registerFont(TTFont("PL-B", "/System/Library/Fonts/Supplemental/Arial Bold.ttf"))
 
-Z_DOMU, DO_SZKOLY, NA_PRZYSTANEK = 15, 5, 2      # minuty dojścia
+DO_SZKOLY, NA_PRZYSTANEK = 5, 2   # dojście z przystanku do szkoły / ze szkoły na przystanek
+Z_DOMU = None                     # zależy od dziecka, ustawiane w main()
 
 DNI = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek"]
+PLAN_LEKCJI = None
 
 
-def wczytaj_plan_lekcji(kto):
-    """Plan lekcji czytany z autobus.js — jedno źródło prawdy z aplikacją."""
+def _tablica(zrodlo, nazwa):
+    m = re.search(nazwa + r"\s*:\s*\[(.*?)\]", zrodlo, re.S)
+    return re.findall(r'"(\d{2}:\d{2})"', m.group(1)) if m else []
+
+
+def wczytaj(kto):
+    """Czyta z autobus.js: plan lekcji, przystanek domowy i rozkłady.
+    Jedno źródło prawdy z aplikacją — PDF nie może się z nią rozjechać."""
     src = ZRODLO.read_text(encoding="utf-8")
-    blok = src[src.index("const PLANY_LEKCJI"):src.index("const IMIE")]
-    czesc = blok[blok.index(kto + ":"):]
+
+    # które dziecko, z którego przystanku i jaki plan lekcji
+    blok_dzieci = src[src.index("const DZIECI"):src.index("const PROFIL")]
+    m = re.search(kto + r"\s*:\s*\{(.*?)\n  \}", blok_dzieci, re.S) \
+        or re.search(kto + r"\s*:\s*\{([^}]*\}[^}]*)\}", blok_dzieci, re.S)
+    if not m:
+        raise SystemExit(f"nie znalazłem dziecka {kto!r} w autobus.js")
+    wpis = m.group(1)
+    przystanek = re.search(r'przystanek:\s*"(\w+)"', wpis).group(1)
+
+    nazwa_planu = re.search(r"lekcje:\s*(\w+)", wpis)
+    if nazwa_planu and nazwa_planu.group(1) != "{":
+        blok_planu = src[src.index("const " + nazwa_planu.group(1)):]
+        blok_planu = blok_planu[:blok_planu.index("};")]
+    else:
+        blok_planu = wpis
     pary = re.findall(r'(\d):\s*\{\s*start:\s*"(\d{2}:\d{2})",\s*koniec:\s*"(\d{2}:\d{2})"',
-                      czesc)[:5]
+                      blok_planu)[:5]
     if len(pary) != 5:
-        raise SystemExit(f"nie znalazłem pełnego planu lekcji dla {kto!r}")
-    return [(DNI[int(d) - 1], s, k) for d, s, k in pary]
+        raise SystemExit(f"niepełny plan lekcji dla {kto!r}")
+    plan = [(DNI[int(d) - 1], a, b) for d, a, b in pary]
 
+    # rozkład z przystanku domowego dziecka
+    blok_przyst = src[src.index("const PRZYSTANKI_DOMOWE"):src.index("const PRZYJAZDY_DO_SZKOLY")]
+    czesc = blok_przyst[blok_przyst.index(przystanek + ":"):]
+    odjazd = _tablica(czesc, "weekday")
+    nazwa_przystanku = re.search(r'stop:\s*"([^"]+)"', czesc).group(1)
+    dojscie = int(re.search(r"walk:\s*(\d+)", czesc).group(1))
 
-PLAN_LEKCJI = None  # ustawiane w main()
+    blok_przyj = src[src.index("const PRZYJAZDY_DO_SZKOLY"):src.index("const LEKCJE_MARYSI")]
+    przyjazd = _tablica(blok_przyj, "weekday")
 
+    blok_szk = src[src.index('id: "szkola"'):]
+    powrot = _tablica(blok_szk, "weekday")
 
-def wczytaj_rozklad():
-    src = ZRODLO.read_text(encoding="utf-8")
-    blok = src[src.index("const DEFAULT_CONFIG"):src.index("const WERSJA")]
-    dom = blok[blok.index('id: "dom"'):blok.index('id: "szkola"')]
-    szk = blok[blok.index('id: "szkola"'):]
-
-    def lista(zrodlo, nazwa):
-        m = re.search(nazwa + r"\s*:\s*\[(.*?)\]", zrodlo, re.S)
-        return re.findall(r'"(\d{2}:\d{2})"', m.group(1))
-
-    odjazd = lista(dom[:dom.index("arrivals")], "weekday")
-    przyjazd = lista(dom[dom.index("arrivals"):], "weekday")
-    powrot = lista(szk, "weekday")
-
-    if {mn(p) - mn(o) for o, p in zip(odjazd, przyjazd)} != {18}:
-        raise SystemExit("Przejazd do szkoły nie wynosi równo 18 min — sprawdź rozkład.")
-    if {mn(p) - mn(o) for o, p in zip(odjazd, powrot)} != {25}:
-        raise SystemExit("Kurs powrotny nie jest równo +25 min — sprawdź rozkład.")
-    return odjazd, przyjazd, powrot
+    # kontrola: przejazd i kurs powrotny muszą mieć STAŁE przesunięcie
+    przejazd = {mn(b) - mn(a) for a, b in zip(odjazd, przyjazd)}
+    powrotne = {mn(b) - mn(a) for a, b in zip(odjazd, powrot)}
+    if len(przejazd) != 1 or len(powrotne) != 1:
+        raise SystemExit(f"przesunięcia nie są stałe (przejazd {sorted(przejazd)}, "
+                         f"powrót {sorted(powrotne)}) — rozkład z niewłaściwego słupka?")
+    return plan, odjazd, przyjazd, powrot, nazwa_przystanku, dojscie, przejazd.pop()
 
 
 def mn(s):
@@ -101,9 +120,9 @@ def zbuduj_wiersze(odjazd, przyjazd, powrot):
 
 
 def main():
-    global PLAN_LEKCJI
-    PLAN_LEKCJI = wczytaj_plan_lekcji(DZIECKO)
-    odjazd, przyjazd, powrot = wczytaj_rozklad()
+    global PLAN_LEKCJI, Z_DOMU
+    (PLAN_LEKCJI, odjazd, przyjazd, powrot,
+     nazwa_przystanku, Z_DOMU, przejazd) = wczytaj(DZIECKO)
     wiersze, uwagi = zbuduj_wiersze(odjazd, przyjazd, powrot)
 
     doc = SimpleDocTemplate(str(WYNIK), pagesize=A4,
@@ -152,8 +171,8 @@ def main():
     tresc = [
         Paragraph(f"Autobus R3 — plan tygodnia — {DZIECKO.capitalize()}", tytul),
         Spacer(1, 3 * mm),
-        Paragraph("rano: Widokowa 02 &rarr; Łady – Szkoła 02&nbsp;&nbsp;·&nbsp;&nbsp;"
-                  "po lekcjach: Łady – Szkoła 01 &rarr; dom", podtytul),
+        Paragraph(f"rano: {nazwa_przystanku} &rarr; Łady – Szkoła 02 ({przejazd} min)"
+                  f"&nbsp;&nbsp;·&nbsp;&nbsp;po lekcjach: Łady – Szkoła 01 &rarr; dom", podtytul),
         Spacer(1, 7 * mm),
         tab,
         Spacer(1, 8 * mm),
