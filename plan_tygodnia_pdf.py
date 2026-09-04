@@ -11,6 +11,7 @@ wiarygodnie wyglądające bzdury.
 Uruchomienie:  ../claude\\ trading\\ bot/.venv/bin/python plan_tygodnia_pdf.py
 """
 import re
+import sys
 from pathlib import Path
 
 from reportlab.lib import colors
@@ -22,8 +23,9 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-ZRODLO = Path(__file__).with_name("index.html")
-WYNIK = Path(__file__).with_name("plan_tygodnia.pdf")
+ZRODLO = Path(__file__).with_name("autobus.js")
+DZIECKO = (sys.argv[1] if len(sys.argv) > 1 else "marysia").lower()
+WYNIK = Path(__file__).with_name(f"plan_tygodnia_{DZIECKO}.pdf")
 
 # Wbudowane fonty reportlaba (Helvetica) nie mają ł, ś, ż, ć, ę — trzeba osadzić TTF.
 pdfmetrics.registerFont(TTFont("PL", "/System/Library/Fonts/Supplemental/Arial.ttf"))
@@ -31,13 +33,22 @@ pdfmetrics.registerFont(TTFont("PL-B", "/System/Library/Fonts/Supplemental/Arial
 
 Z_DOMU, DO_SZKOLY, NA_PRZYSTANEK = 15, 5, 2      # minuty dojścia
 
-PLAN_LEKCJI = [
-    ("Poniedziałek", "8:35", "13:05"),
-    ("Wtorek",       "7:45", "13:05"),
-    ("Środa",       "10:20", "15:55"),
-    ("Czwartek",    "11:20", "15:55"),
-    ("Piątek",      "10:20", "15:55"),
-]
+DNI = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek"]
+
+
+def wczytaj_plan_lekcji(kto):
+    """Plan lekcji czytany z autobus.js — jedno źródło prawdy z aplikacją."""
+    src = ZRODLO.read_text(encoding="utf-8")
+    blok = src[src.index("const PLANY_LEKCJI"):src.index("const IMIE")]
+    czesc = blok[blok.index(kto + ":"):]
+    pary = re.findall(r'(\d):\s*\{\s*start:\s*"(\d{2}:\d{2})",\s*koniec:\s*"(\d{2}:\d{2})"',
+                      czesc)[:5]
+    if len(pary) != 5:
+        raise SystemExit(f"nie znalazłem pełnego planu lekcji dla {kto!r}")
+    return [(DNI[int(d) - 1], s, k) for d, s, k in pary]
+
+
+PLAN_LEKCJI = None  # ustawiane w main()
 
 
 def wczytaj_rozklad():
@@ -90,13 +101,15 @@ def zbuduj_wiersze(odjazd, przyjazd, powrot):
 
 
 def main():
+    global PLAN_LEKCJI
+    PLAN_LEKCJI = wczytaj_plan_lekcji(DZIECKO)
     odjazd, przyjazd, powrot = wczytaj_rozklad()
     wiersze, uwagi = zbuduj_wiersze(odjazd, przyjazd, powrot)
 
     doc = SimpleDocTemplate(str(WYNIK), pagesize=A4,
                             leftMargin=14 * mm, rightMargin=14 * mm,
                             topMargin=16 * mm, bottomMargin=14 * mm,
-                            title="Autobus R3 — plan tygodnia", author="")
+                            title=f"Autobus R3 — plan tygodnia — {DZIECKO}", author="")
     tytul = ParagraphStyle("t", fontName="PL-B", fontSize=21, leading=25,
                            alignment=TA_CENTER, textColor=colors.HexColor("#0e1526"))
     podtytul = ParagraphStyle("p", fontName="PL", fontSize=10.5, leading=15,
@@ -137,7 +150,7 @@ def main():
     czekania = sorted({c for _, _, c in uwagi})
 
     tresc = [
-        Paragraph("Autobus R3 — plan tygodnia", tytul),
+        Paragraph(f"Autobus R3 — plan tygodnia — {DZIECKO.capitalize()}", tytul),
         Spacer(1, 3 * mm),
         Paragraph("rano: Widokowa 02 &rarr; Łady – Szkoła 02&nbsp;&nbsp;·&nbsp;&nbsp;"
                   "po lekcjach: Łady – Szkoła 01 &rarr; dom", podtytul),

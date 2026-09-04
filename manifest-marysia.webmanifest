@@ -1,8 +1,8 @@
 {
-  "name": "Mój autobus",
-  "short_name": "Autobus",
-  "description": "Kiedy odjeżdża następny autobus z przystanku przy domu albo przy szkole.",
-  "start_url": "./index.html",
+  "name": "Autobus — Marysia",
+  "short_name": "Marysia",
+  "description": "Kiedy odjeżdża następny autobus R3 z przystanku przy domu albo przy szkole.",
+  "start_url": "./marysia.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

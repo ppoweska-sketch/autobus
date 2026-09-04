@@ -1,45 +1,53 @@
-# Mój autobus — strona dla dziecka
+# Mój autobus — strona dla dzieci
 
-Strona pokazuje jeden ekran: która linia, gdzie dziecko jest, dokąd jedzie,
-o której odjeżdża najbliższy autobus i za ile minut.
+Dwie osobne strony, jedna dla Marysi i jedna dla Janka. **Rozkład autobusu jest
+wspólny, różni się tylko plan lekcji.** Każde dziecko widzi jeden ekran: która linia,
+gdzie jest, dokąd jedzie, o której odjeżdża najbliższy autobus i o której będzie w szkole.
 
 ```
-        Autobus R3                      Jest sobota
-
-      Jesteś w domu             Dziś nie idziesz do szkoły!
+        Autobus R3                      Jest niedziela
+      Jesteś w domu               Dziś autobus nie jeździ!
     Jedziesz do szkoły
 
   Następny autobus o godzinie
            07:11
-
     Autobus za 11 minut
   Będziesz w szkole o 07:34
-        Wyjdź o 07:01
+        Wyjdź o 06:56
 ```
 
-Linijka „Będziesz w szkole o…" to **godzina przyjazdu autobusu** na przystanek
-Łady – Szkoła 02 **plus 5 minut dojścia** z przystanku do szkoły. Godzina, a nie
-„za X minut", bo tak łatwiej zestawić ją z planem lekcji. Pokazuje się tylko przy
-domu — przy szkole nie, bo nie mamy godzin przyjazdu w drugą stronę.
-
 Kolor napisu „Autobus za…" zmienia się sam: zielony = spokojnie, pomarańczowy = zbieraj się,
-czerwony = wyjdź natychmiast (liczone z czasu dojścia do przystanku).
+czerwony = wyjdź natychmiast. W soboty działa rozkład sobotni, w niedziele i święta
+(także ruchome) pokazuje się ekran po prawej.
 
-W soboty działa normalny ekran z rozkładem sobotnim. W niedziele i święta — także ruchome
-(Wielkanoc, Boże Ciało) — pokazuje się ekran po prawej. Święto wypadające w sobotę też
-liczy się jako dzień bez kursów.
+Pod ikoną 📅 w lewym górnym rogu jest **plan całego tygodnia** z podświetlonym dziś.
 
-Gdy autobusów danego dnia już nie ma, zamiast bezużytecznego „za 43 godziny"
-pojawia się „Dziś autobus już nie jeździ" i godzina najbliższego kursu w kolejnym dniu.
+## Pliki
+
+| Plik | Do czego |
+|---|---|
+| `autobus.js` | **cała logika + rozkład + plany lekcji obojga dzieci** — tu się zmienia dane |
+| `autobus.css` | wygląd, wspólny |
+| `marysia.html`, `janek.html` | cienkie strony: ustawiają, czyje to, i wczytują resztę |
+| `index.html` | ekran wyboru „Marysia czy Janek", zapamiętuje wybór |
+| `manifest-*.webmanifest` | osobna ikona i nazwa dla każdego dziecka |
+| `icon-*.png` | niebieskie = Marysia, zielone = Janek |
+| `sw.js` | praca bez internetu i samoaktualizacja |
+| `plan_tygodnia_pdf.py` | generuje PDF z planem tygodnia |
+| `zrob_ikony.py` | rysuje ikony (bez zewnętrznych bibliotek) |
+
+Kod jest w jednym miejscu celowo: gdyby każde dziecko miało własną kopię całej
+aplikacji, zmiana rozkładu wymagałaby dwóch edycji i prędzej czy później
+któraś by się nie zgadzała.
 
 ## Wpisane dane
 
 | | Dom | Szkoła |
 |---|---|---|
-| Przystanek | Widokowa 02 | Łady – Szkoła 01 |
+| Przystanek | Widokowa 02 | Łady – Szkoła 01 (powrót), 02 (przyjazd) |
 | Współrzędne | 52.139126, 20.942015 | 52.127140, 20.961425 |
 | Promień | 300 m | 300 m |
-| Dojście | 10 min | 2 min |
+| Dojście | 15 min | 2 min na przystanek, 5 min z przystanku do szkoły |
 | Kursy w dni robocze | 14 | 14 |
 | Kursy w soboty | 4 | 4 |
 | Niedziele i święta | nie jeździ | nie jeździ |
@@ -48,116 +56,69 @@ Odległość dom ↔ szkoła to 1879 m, więc promienie 300 m nie zachodzą na s
 
 ### Dwa słupki przy szkole — i dlaczego oba są potrzebne
 
-R3 jeździ pętlą i wraca tą samą trasą w drugą stronę, więc przy szkole są dwa słupki
-o różnym przeznaczeniu. Oba rozkłady mają idealnie stałe przesunięcie względem
-odjazdów spod domu, we wszystkich 18 kursach:
+R3 jeździ pętlą i wraca tą samą trasą, więc przy szkole są dwa słupki o różnym
+przeznaczeniu. Oba mają idealnie stałe przesunięcie względem odjazdu spod domu:
 
-| Słupek | Rola | Przesunięcie od odjazdu z Widokowej 02 |
+| Słupek | Rola | Przesunięcie |
 |---|---|---|
 | **Łady – Szkoła 02** | przyjazd — tu dziecko wysiada rano | **+18 min** |
 | **Łady – Szkoła 01** | odjazd — stąd wraca do domu | **+25 min** |
 
-> **Kontrola spójności przy wpisywaniu nowych godzin:** jeśli któreś z tych przesunięć
-> przestanie być stałe, rozkład prawie na pewno pochodzi z niewłaściwego słupka.
-> Ta reguła już raz uratowała pomiar — sobotnie godziny były najpierw wpisane
-> ze słupka 02 (+18) tam, gdzie powinny być z 01 (+25).
+> **Kontrola przy wpisywaniu nowych godzin:** jeśli któreś przesunięcie przestanie być
+> stałe, rozkład prawie na pewno pochodzi z niewłaściwego słupka. Skrypt PDF sprawdza
+> to sam i przerywa. Ta reguła już raz uratowała pomiar.
 
-## Pliki
+## Plan lekcji
 
-| Plik | Do czego |
-|---|---|
-| `index.html` | cała aplikacja — ekran, rozkład, logika, ustawienia |
-| `sw.js` | pozwala uruchomić stronę bez internetu |
-| `manifest.webmanifest` | ikona i tryb pełnoekranowy po dodaniu do ekranu głównego |
-| `icon-*.png` | ikony |
-
-## 1. Wpisz swoje dane
-
-**Zalecane:** otwórz `index.html` w edytorze i podmień blok `DEFAULT_CONFIG` (na samej górze skryptu).
-Dane wbudowane w plik działają od razu na każdym telefonie — nic nie trzeba konfigurować po instalacji.
+W `autobus.js`, blok `PLANY_LEKCJI`. Klucz to dzień tygodnia (1 = poniedziałek):
 
 ```js
-{
-  id: "dom", name: "Dom", emoji: "🏠",
-  inPlace: "Jesteś w domu",        // napis nr 1
-  goingTo: "Jedziesz do szkoły",   // napis nr 2
-  lat: 52.2297, lon: 21.0122,      // współrzędne domu
-  radius: 300,                     // ile metrów wokół liczy się jako „dom”
-  walk: 4,                         // minut dojścia do przystanku
-  stop: "Przystanek przy domu",    // drobny napis na dole ekranu
-  lines: [
-    { number: "R3", direction: "",
-      weekday:  ["06:52","07:12", ...],   // dni robocze
-      saturday: ["07:20", ...],
-      sunday:   ["08:40", ...] }          // niedziele i święta
-  ]
+janek: {
+  imie: "Janek",
+  1: { start: "07:45", koniec: "11:05" },
+  ...
 }
 ```
 
-Godziny po północy zapisuj jako `24:15`, `25:00`.
-Święta państwowe (także ruchome: Wielkanoc, Boże Ciało) są rozpoznawane automatycznie
-i traktowane jak niedziela.
+Autobusy dobierają się z tego same, dwiema regułami: **rano** ostatni kurs, który
+dowozi przed dzwonkiem; **po lekcjach** pierwszy, na który da się dojść.
 
-**Nie znasz współrzędnych?** Otwórz stronę, naciśnij ⚙ i przy każdym miejscu użyj
-przycisku „📍 Użyj mojej obecnej lokalizacji" — trzeba przy tym stać w domu / przy szkole.
-Potem przepisz liczby do `DEFAULT_CONFIG`.
+## Zmiana rozkładu albo planu lekcji
 
-## 2. Wrzuć na hosting z HTTPS
+Popraw `autobus.js` i podnieś **dwa numery**:
 
-Geolokalizacja **nie działa** z pliku na dysku (`file://`) — przeglądarka jej nie udostępni.
-Potrzebny jest adres `https://`. Najprościej GitHub Pages (darmowy):
+- `version:` w `DEFAULT_CONFIG` — bez tego telefon z własną zapisaną kopią
+  (ktoś nacisnął „Zapisz" w ⚙) zignoruje zmianę na zawsze;
+- `CACHE = "autobus-vN"` w `sw.js` — bez tego telefon weźmie stary plik z pamięci.
 
-1. Załóż repozytorium na github.com, np. `autobus`.
-2. Wrzuć do niego wszystkie pliki z tego katalogu (przeciągnij je w „Add file → Upload files").
-3. `Settings` → `Pages` → Source: `Deploy from a branch`, Branch: `main`, folder `/ (root)` → `Save`.
-4. Po 1–2 minutach strona jest pod `https://TWOJA-NAZWA.github.io/autobus/`.
-
-> Adres jest publiczny. Nie umieszczaj w konfiguracji dokładnego adresu domu jako tekstu —
-> same współrzędne w kodzie strony też są widoczne dla każdego, kto zna link.
-> Jeśli to problem, lepszy będzie hosting z hasłem albo prywatny serwer.
-
-## 3. Dodaj na ekran główny iPhone'a
-
-Na telefonie dziecka, **w Safari** (nie w Chrome — tylko Safari potrafi dodać do ekranu głównego):
-
-1. Otwórz adres strony.
-2. Przycisk „Udostępnij" (kwadrat ze strzałką) → **Dodaj do ekranu początkowego**.
-3. Uruchom z ikony. Przy pierwszym starcie iPhone zapyta o dostęp do lokalizacji — **Zezwól**.
-
-Od tej pory działa jak aplikacja: pełny ekran, własna ikona, otwiera się też bez internetu.
-
-**Uwaga:** aplikacja z ekranu głównego ma własną, oddzielną pamięć — ustawienia zrobione
-wcześniej w Safari **nie** przeniosą się do niej. Dlatego najlepiej wpisać rozkład
-w `DEFAULT_CONFIG` przed wrzuceniem na hosting (punkt 1).
-
-## 4. Zmiana rozkładu później
-
-Dwa sposoby:
-
-- **Trwale:** popraw `DEFAULT_CONFIG` w `index.html` i podnieś **dwa numery**:
-  - `version:` na górze `DEFAULT_CONFIG` — bez tego telefon z własną zapisaną kopią
-    (ktoś nacisnął „Zapisz” w ⚙) zignoruje zmianę na zawsze;
-  - `CACHE = "autobus-vN"` w `sw.js` — bez tego telefon weźmie stary plik z pamięci offline.
-
-  Potem wgraj oba pliki na GitHub. Publikacja trwa 1–2 minuty, postęp widać w zakładce
-  **Actions** repozytorium. Aplikacja na telefonie **sama się przeładuje**, gdy zobaczy
-  nową wersję (sprawdza przy starcie i raz na godzinę).
+Potem `git push`. Publikacja trwa 1–2 minuty (zakładka **Actions** w repozytorium).
+Aplikacja na telefonie sama się przeładuje — sprawdza przy starcie i raz na godzinę.
 
 ### Jak sprawdzić, czy telefon ma aktualną wersję
 
-Na dole ekranu, w szarej linijce, jest numer — np. `… · v5`. Musi się zgadzać
-z `version:` w `index.html`. Jeśli jest mniejszy, telefon wciąż ma starą kopię.
+Na dole ekranu, w szarej linijce, jest imię i numer: `… · Janek · v7`. Numer musi się
+zgadzać z `version:` w `autobus.js`. Jeśli jest mniejszy, telefon ma starą kopię.
 
-To nie jest ozdobnik: raz już zniknęła przez to linijka „Będziesz w szkole o…" —
-kod był poprawny i wgrany, ale telefon go nie widział, a z samego ekranu nie dało się
-tego odróżnić od błędu w kodzie.
-- **Doraźnie, na jednym telefonie:** ⚙ w rogu ekranu → popraw → „Zapisz".
-  Przycisk „🔗 Skopiuj link z tą konfiguracją" tworzy adres zawierający cały rozkład —
-  po otwarciu go na innym telefonie ustawienia przeniosą się tam same.
+To nie ozdobnik: raz już zniknęła przez to cała funkcja — kod był poprawny i wgrany,
+ale telefon go nie widział, a z samego ekranu nie dało się tego odróżnić od błędu.
+
+## Instalacja na telefonie dziecka
+
+W **Safari** (tylko Safari potrafi dodać do ekranu głównego):
+
+1. Otwórz adres **swojego** dziecka:
+   `https://ppoweska-sketch.github.io/autobus/marysia.html`
+   albo `.../janek.html`
+2. Udostępnij → **Dodaj do ekranu początkowego**
+3. Uruchom z ikony, przy pierwszym starcie **Zezwól** na lokalizację
+
+Adres główny (`/autobus/`) pokazuje ekran wyboru i zapamiętuje go, więc aplikacja
+dodana wcześniej pod starym adresem nadal działa. Żeby zmienić wybór, otwórz
+`https://ppoweska-sketch.github.io/autobus/?wybierz`.
 
 ## Gdy GPS nie działa
 
-Jeśli lokalizacja jest niedostępna albo dziecko jest gdzieś indziej, na ekranie pojawiają się
+Jeśli lokalizacja jest niedostępna albo dziecko jest gdzie indziej, pojawiają się
 dwa duże przyciski — „🏠 Dom" i „🎒 Szkoła" — do ręcznego wyboru przystanku.
 
 ## Test na komputerze
@@ -168,3 +129,11 @@ cd ~/autobus-dziecka && python3 -m http.server 8777
 
 Otwórz `http://127.0.0.1:8777/` — `localhost` liczy się jako połączenie bezpieczne,
 więc geolokalizacja tu zadziała.
+
+## PDF z planem tygodnia
+
+```bash
+cd ~/autobus-dziecka && "../claude trading bot/.venv/bin/python" plan_tygodnia_pdf.py janek
+```
+
+Godziny czyta z `autobus.js`, więc PDF nie może rozjechać się z aplikacją.
