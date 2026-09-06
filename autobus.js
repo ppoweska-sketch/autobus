@@ -35,16 +35,11 @@ const DO_SZKOLY = {
                  "11:09","12:14","13:35","14:30","15:30","16:24","17:32","18:12"],
       saturday: ["09:04","11:04","14:04","16:04"] }
   },
-  // Gimbus: te same 6 kursów mija Widokową i Limby w odstępie minuty — Widokowa
-  // istnieje po to, żeby Marysia i Janek mieli JEDEN przystanek, nie dwa.
-  gimbus_widokowa: {
-    linia: "Gimbus", stop: "Widokowa 02", walk: 15, zPrzystanku: 0,   // wysadza pod szkołą
-    weekday:  ["07:24","09:51"],
-    saturday: [],
-    przyjazdy: { weekday: ["07:30","09:57"], saturday: [] }
-  },
-  gimbus_limby: {
-    linia: "Gimbus", stop: "Limby", walk: 15, zPrzystanku: 0,
+  // Gimbus: wszystkie 6 kursów mija Widokową i Limby w odstępie minuty — kursów
+  // obsługujących tylko jeden z tych przystanków nie ma. Wybrane Limby, bo lepsze
+  // dojście (decyzja Pawła 06.09), a przy okazji odjazd jest minutę później.
+  gimbus: {
+    linia: "Gimbus", stop: "Limby", walk: 15, zPrzystanku: 0,   // wysadza pod szkołą
     weekday:  ["07:25","09:52"],
     saturday: [],
     przyjazdy: { weekday: ["07:30","09:57"], saturday: [] }
@@ -77,9 +72,9 @@ const LEKCJE_MARYSI = {          // wspólny dla Marysi i Alicji
 
 /* Dziecko: imię, z jakich kursów może korzystać, plan lekcji. */
 const DZIECI = {
-  marysia: { imie: "Marysia", doSzkoly: ["widokowa", "gimbus_widokowa"],   lekcje: LEKCJE_MARYSI },
-  alicja:  { imie: "Alicja",  doSzkoly: ["podoluszyn", "gimbus_limby"], lekcje: LEKCJE_MARYSI },
-  janek:   { imie: "Janek",   doSzkoly: ["widokowa", "gimbus_widokowa"], lekcje: {
+  marysia: { imie: "Marysia", doSzkoly: ["widokowa", "gimbus"],   lekcje: LEKCJE_MARYSI },
+  alicja:  { imie: "Alicja",  doSzkoly: ["podoluszyn", "gimbus"], lekcje: LEKCJE_MARYSI },
+  janek:   { imie: "Janek",   doSzkoly: ["widokowa", "gimbus"], lekcje: {
     1: { start: "07:45", koniec: "11:05" },
     2: { start: "07:45", koniec: "11:05" },
     3: { start: "07:45", koniec: "13:05" },
@@ -104,7 +99,7 @@ function jakoLinia(k) {
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 12,
+  version: 13,
 
   lekcje: PROFIL.lekcje,
 

@@ -50,8 +50,7 @@ Od 06.09 aplikacja wybiera między **R3** a **gimbusem** (rozkład SP Łady, gmi
 |---|---|---|---|---|
 | R3 | Widokowa 02 | Marysia, Janek | 15 min | 14 dz. rob. + 4 sob. |
 | R3 | Podoluszyn Nowy 02 | Alicja | 5 min | jw., 14 min później |
-| Gimbus | Widokowa 02 | Marysia, Janek | 15 min | 2 rano, 4 po lekcjach |
-| Gimbus | Limby | Alicja | 15 min | jw., minutę później |
+| Gimbus | Limby | wszyscy | 15 min | 2 rano, 4 po lekcjach |
 
 **Reguła wyboru:** rano ten kurs, przy którym można wyjść z domu **najpóźniej**
 (a nie ten, który dowozi najbliżej dzwonka — przy dwóch przystankach o różnym
@@ -59,6 +58,7 @@ czasie dojścia to nie to samo). Po lekcjach — **najkrótsze czekanie**.
 
 Wszystkie 6 kursów gimbusa mija Widokową i Limby w odstępie minuty; sprawdzone
 w rozkładzie gminy, kursów obsługujących tylko jeden z tych przystanków nie ma.
+Wybrane **Limby** — lepsze dojście, a odjazd o minutę późniejszy niż z Widokowej.
 Gimbus wysadza pod szkołą (0 min dojścia) i stamtąd też odjeżdża.
 
 Podoluszyn Nowy 02 leży **14 minut za Widokową 02 na tej samej trasie tego samego
