@@ -40,10 +40,10 @@ const PRZYJAZDY_DO_SZKOLY = {
 
 /* Dzieci: imię, z którego przystanku jeżdżą i ich plan lekcji.
    Klucz planu to dzień tygodnia: 1 = poniedziałek … 5 = piątek. */
-const LEKCJE_MARYSI = {
-  1: { start: "08:35", koniec: "13:05" },
+const LEKCJE_MARYSI = {          // wspólny dla Marysi i Alicji
+  1: { start: "07:45", koniec: "13:05" },
   2: { start: "07:45", koniec: "13:05" },
-  3: { start: "10:20", koniec: "15:55" },
+  3: { start: "11:20", koniec: "15:55" },
   4: { start: "11:20", koniec: "15:55" },
   5: { start: "10:20", koniec: "15:55" }
 };
@@ -66,7 +66,7 @@ const PRZYSTANEK = PRZYSTANKI_DOMOWE[PROFIL.przystanek];
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 9,
+  version: 10,
 
   lekcje: PROFIL.lekcje,
 
