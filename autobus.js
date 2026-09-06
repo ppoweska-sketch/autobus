@@ -16,7 +16,7 @@ const DZIECKO = (window.DZIECKO || "marysia").toLowerCase();
    --------------------------------------------------------------------- */
 const DO_SZKOLY = {
   widokowa: {
-    linia: "Autobus", stop: "Widokowa 02", walk: 15, zPrzystanku: 5,
+    linia: "Autobus R3", naglowek: "Autobus", stop: "Widokowa 02", walk: 15, zPrzystanku: 5,
     weekday:  ["05:36","06:16","07:11","08:01","08:56","09:46",
                "10:51","11:56","13:17","14:12","15:12","16:06","17:14","17:54"],
     saturday: ["08:46","10:46","13:46","15:46"],
@@ -26,7 +26,7 @@ const DO_SZKOLY = {
       saturday: ["09:04","11:04","14:04","16:04"] }
   },
   podolszyn: {
-    linia: "Autobus", stop: "Podolszyn Nowy 02", walk: 5, zPrzystanku: 5,
+    linia: "Autobus R3", naglowek: "Autobus", stop: "Podolszyn Nowy 02", walk: 5, zPrzystanku: 5,
     weekday:  ["05:50","06:30","07:25","08:15","09:10","10:00",
                "11:05","12:10","13:31","14:26","15:26","16:20","17:28","18:08"],
     saturday: ["09:00","11:00","14:00","16:00"],
@@ -59,7 +59,7 @@ const DO_SZKOLY = {
 /* KURSY ZE SZKOŁY. Gimbus rusza sprzed szkoły (0 min dojścia). */
 const ZE_SZKOLY = {
   r3_widokowa: {
-    linia: "Autobus", stop: "Łady – Szkoła 01", walk: 2,
+    linia: "Autobus R3", naglowek: "Autobus", stop: "Łady – Szkoła 01", walk: 2,
     weekday:  ["06:01","06:41","07:36","08:26","09:21","10:11",
                "11:16","12:21","13:42","14:37","15:37","16:31","17:39","18:19"],
     saturday: ["09:11","11:11","14:11","16:11"],
@@ -72,7 +72,7 @@ const ZE_SZKOLY = {
   // Alicja: nie znamy godzin przyjazdu R3 na Podolszyn w drodze powrotnej,
   // więc dla niej porównanie idzie po godzinie odjazdu, nie po dotarciu do domu.
   r3_podolszyn: {
-    linia: "Autobus", stop: "Łady – Szkoła 01", walk: 2,
+    linia: "Autobus R3", naglowek: "Autobus", stop: "Łady – Szkoła 01", walk: 2,
     weekday:  ["06:01","06:41","07:36","08:26","09:21","10:11",
                "11:16","12:21","13:42","14:37","15:37","16:31","17:39","18:19"],
     saturday: ["09:11","11:11","14:11","16:11"],
@@ -170,7 +170,7 @@ function nieWczesniejNiz(kurs, odKiedy) {
 
 function jakoLinia(k) {
   return {
-    number: k.linia, direction: "", stop: k.stop, walk: k.walk,
+    number: k.linia, naglowek: k.naglowek || k.linia, direction: "", stop: k.stop, walk: k.walk,
     arriveWalk: k.zPrzystanku != null ? k.zPrzystanku : (k.dojscieDoDomu || 0),
     weekday: k.weekday || [], saturday: k.saturday || [], sunday: [],
     naPrzystanku: k.naPrzystanku || null, dojscieDoDomu: k.dojscieDoDomu || 0,
@@ -184,7 +184,7 @@ function jakoLinia(k) {
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 23,
+  version: 24,
 
   lekcje: PROFIL.lekcje,
 
@@ -417,6 +417,7 @@ function normalize(cfg) {
     arriveWalk: Number(p.arriveWalk) >= 0 ? Number(p.arriveWalk) : 0,
     lines: (Array.isArray(p.lines) ? p.lines : []).map(l => ({
       number: String(l.number ?? "?"),
+      naglowek: l.naglowek || String(l.number ?? "?"),
       direction: l.direction || "",
       stop: l.stop || p.stop || "",
       walk: Number(l.walk) >= 0 ? Number(l.walk) : (Number(p.walk) || 0),
@@ -531,7 +532,7 @@ function render() {
     if (changed("switch", "wolne")) {
       $("#switch").innerHTML = ""; $("#switch").classList.add("hidden");
     }
-    setText("#lineTitle", (config.places[0].lines[0] || {}).number || "Autobus");
+    setText("#lineTitle", (config.places[0].lines[0] || {}).naglowek || "Autobus");
     setText("#whereAmI", "Dziś autobus nie jeździ!");
     setText("#goingTo", "");
     setText("#atLabel", "");
@@ -598,8 +599,8 @@ function render() {
   const d = deps[0];
 
   // 1. Autobus R3
-  setText("#lineTitle", d ? (d.line.number + (d.numer ? " " + d.numer : ""))
-                        : ((place.lines[0] || {}).number || "Autobus"));
+  setText("#lineTitle", d ? (d.line.naglowek + (d.numer ? " " + d.numer : ""))
+                        : ((place.lines[0] || {}).naglowek || "Autobus"));
 
   // 2. Jesteś w domu / w szkole
   setText("#whereAmI", mode === "inside" || mode === "manual"
@@ -633,8 +634,8 @@ function render() {
       setText("#count", "Dziś już nie jeździ");
       setClass("#main", "main");
     } else {
-      setText("#count", mins <= 0 ? (d.line.number + " odjeżdża TERAZ")
-                            : (d.line.number + " za " + minutesWord(mins)));
+      setText("#count", mins <= 0 ? (d.line.naglowek + " odjeżdża TERAZ")
+                            : (d.line.naglowek + " za " + minutesWord(mins)));
       setClass("#main", "main " + (mins <= walk ? "bad" : mins <= walk + 4 ? "warn" : "ok"));
     }
 

@@ -81,10 +81,13 @@ nie po samym odjeździe — gimbus bywa wolniejszy albo wysadza dalej.
 Przy każdym kursie gimbusa jest **numer autobusu z rozkładu gminy** (nr 1, 2 lub 3),
 bo o tej samej porze spod szkoły potrafią ruszać różne autobusy w różne strony.
 
-**Janek nie wraca gimbusem przed 15:00** (`powrotGimbusOd` w jego wpisie) — kursy 12:25
-i 13:20 są dla niego odsiewane, więc w środę wraca R3 o 13:42. Reguła działa w aplikacji
-i w skrypcie PDF; przy dodawaniu podobnych ograniczeń trzeba poprawić **oba**, inaczej
-telefon i wydruk pokażą inny kurs. Raz już tak było.
+**Janek nie wraca gimbusem przed 15:00** (`powrotGimbusOd` w jego wpisie), bo **wymaga
+wtedy odbioru przez osobę dorosłą na Limbach**. To ograniczenie bezpieczeństwa, nie
+wygoda — kosztuje go 25 minut w środę (gimbus 13:20 dowiózłby na 13:45, R3 dowozi
+na 14:10) i mimo to zostaje. Nie usuwać przy porządkowaniu kodu.
+
+Reguła działa w aplikacji i w skrypcie PDF; przy dodawaniu podobnych ograniczeń trzeba
+poprawić **oba**, inaczej telefon i wydruk pokażą inny kurs. Raz już tak było.
 
 Podolszyn Nowy 02 leży **14 minut za Widokową 02 na tej samej trasie tego samego
 kursu** — dlatego godziny przyjazdu do szkoły są wspólne dla wszystkich dzieci
