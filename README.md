@@ -155,6 +155,10 @@ Popraw `autobus.js` i podnieś **dwa numery**:
   (ktoś nacisnął „Zapisz" w ⚙) zignoruje zmianę na zawsze;
 - `CACHE = "autobus-vN"` w `sw.js` — bez tego telefon weźmie stary plik z pamięci.
 
+Po zmianie uruchom **`./sprawdz_wersje.sh`** — pilnuje, żeby oba numery były równe.
+Raz `sw.js` utknął na v18, gdy konfiguracja była już na v22: podmiana tekstu nie
+znalazła szukanego wzorca i cicho nic nie zrobiła. Na ekranie tego nie widać.
+
 Potem `git push`. Publikacja trwa 1–2 minuty (zakładka **Actions** w repozytorium).
 Aplikacja na telefonie sama się przeładuje — sprawdza przy starcie i raz na godzinę.
 
