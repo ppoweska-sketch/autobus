@@ -56,7 +56,7 @@ const DZIECI = {
     2: { start: "07:45", koniec: "11:05" },
     3: { start: "07:45", koniec: "13:05" },
     4: { start: "09:30", koniec: "14:05" },
-    5: { start: "12:20", koniec: "15:55" }
+    5: { start: "11:20", koniec: "15:05" }
   } }
 };
 
@@ -66,7 +66,7 @@ const PRZYSTANEK = PRZYSTANKI_DOMOWE[PROFIL.przystanek];
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 8,
+  version: 9,
 
   lekcje: PROFIL.lekcje,
 
