@@ -132,7 +132,12 @@ const DZIECI = {
              dwieOpcjePowrotu: true,
              lekcje: LEKCJE_MARYSI },
   janek:   { imie: "Janek",   dom: "falenty",   doSzkoly: ["widokowa", "gimbus"],            zeSzkoly: ["r3_widokowa", "gimbus_limby"],
-             powrotGimbusOd: "15:00",   // decyzja Pawła 06.09 — wcześniej ma wracać R3
+             // NIE ZMIENIAĆ bez rozmowy z Pawłem: to ograniczenie bezpieczeństwa,
+             // nie preferencja. Janek nie może wysiąść z gimbusa na Limbach przed
+             // 15:00, bo wymaga odbioru przez osobę dorosłą. Kosztuje go to 25 min
+             // w środę (gimbus 13:20 dowiózłby na 13:45, R3 dowozi na 14:10) —
+             // i tak ma zostać.
+             powrotGimbusOd: "15:00",
              lekcje: {
     1: { start: "07:45", koniec: "11:05" },
     2: { start: "07:45", koniec: "11:05" },
