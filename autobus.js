@@ -189,7 +189,7 @@ function jakoLinia(k) {
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 27,
+  version: 28,
 
   lekcje: PROFIL.lekcje,
 
@@ -232,6 +232,7 @@ const WERSJA = " · " + IMIE + " · v" + DEFAULT_CONFIG.version;
    są cienkie i nie trzeba poprawiać układu w dwóch miejscach. */
 document.getElementById("app").innerHTML = `
   <button id="gear" aria-label="Ustawienia">⚙</button>
+  <button id="kto" aria-label="Zmień dziecko">👥</button>
   <button id="kalendarz" aria-label="Plan tygodnia">📅</button>
   <div id="banner" class="banner hidden"></div>
   <div id="switch" class="switch hidden"></div>
@@ -943,13 +944,6 @@ function openSettings() {
   save.onclick = () => { harvestAll(); saveConfig(draft); closeSettings(); };
   box.appendChild(save);
 
-  // Wyjście do ekranu wyboru dziecka. Bez tego jedyną drogą był adres z ?wybierz,
-  // a aplikacja dodana do ekranu głównego nie ma paska adresu, żeby go wpisać.
-  const zmien = document.createElement("button");
-  zmien.className = "btn"; zmien.textContent = "👧👦 Zmień dziecko";
-  zmien.onclick = () => { location.href = "index.html?wybierz"; };
-  box.appendChild(zmien);
-
   const link = document.createElement("button");
   link.className = "btn"; link.textContent = "🔗 Skopiuj link z tą konfiguracją";
   link.onclick = async () => {
@@ -985,8 +979,17 @@ function closeSettings() {
 
 /* ============================ start ============================ */
 config = loadConfig();
+
+/* Wybór dziecka zapamiętujemy TU, a nie tylko na ekranie wyboru. Dzięki temu
+   adres główny otwiera od razu właściwy rozkład także wtedy, gdy dziecko trafiło
+   na swoją stronę z zakładki albo z ikony na ekranie głównym. */
+try { localStorage.setItem("autobus.ktore-dziecko", DZIECKO); } catch (e) {}
+
 $("#gear").onclick = openSettings;
 $("#kalendarz").onclick = pokazTydzien;
+/* Powrót do ekranu wyboru. ?wybierz kasuje zapamiętane dziecko, więc ekran
+   pokaże się zamiast natychmiastowego przeskoku do poprzedniego rozkładu. */
+$("#kto").onclick = () => { location.href = "index.html?wybierz"; };
 startGeolocation();
 render();
 setInterval(render, 1000);

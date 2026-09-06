@@ -12,6 +12,8 @@
 
   #gear{position:absolute;top:calc(var(--safe-t) + 10px);right:12px;
     background:none;border:none;color:#42506f;font-size:20px;width:44px;height:44px}
+  #kto{position:absolute;top:calc(var(--safe-t) + 10px);right:56px;
+    background:none;border:none;font-size:20px;width:44px;height:44px;opacity:.55}
   #kalendarz{position:absolute;top:calc(var(--safe-t) + 10px);left:12px;
     background:none;border:none;font-size:20px;width:44px;height:44px;opacity:.55}
 
