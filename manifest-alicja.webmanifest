@@ -1,7 +1,7 @@
 {
   "name": "Autobus — Alicja",
   "short_name": "Alicja",
-  "description": "Kiedy odjeżdża następny autobus R3 z przystanku Podoluszyn Nowy 02 albo przy szkole.",
+  "description": "Kiedy odjeżdża następny autobus R3 z przystanku Podolszyn Nowy 02 albo przy szkole.",
   "start_url": "./alicja.html",
   "scope": "./",
   "display": "standalone",

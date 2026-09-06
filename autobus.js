@@ -25,8 +25,8 @@ const DO_SZKOLY = {
                  "11:09","12:14","13:35","14:30","15:30","16:24","17:32","18:12"],
       saturday: ["09:04","11:04","14:04","16:04"] }
   },
-  podoluszyn: {
-    linia: "Autobus R3", stop: "Podoluszyn Nowy 02", walk: 5, zPrzystanku: 5,
+  podolszyn: {
+    linia: "Autobus R3", stop: "Podolszyn Nowy 02", walk: 5, zPrzystanku: 5,
     weekday:  ["05:50","06:30","07:25","08:15","09:10","10:00",
                "11:05","12:10","13:31","14:26","15:26","16:20","17:28","18:08"],
     saturday: ["09:00","11:00","14:00","16:00"],
@@ -38,6 +38,14 @@ const DO_SZKOLY = {
   // Gimbus: wszystkie 6 kursów mija Widokową i Limby w odstępie minuty — kursów
   // obsługujących tylko jeden z tych przystanków nie ma. Wybrane Limby, bo lepsze
   // dojście (decyzja Pawła 06.09), a przy okazji odjazd jest minutę później.
+  // Gimbus z Podolszyna to INNE kursy niż te z Limb (autobus nr 3 rano o 07:23,
+  // autobus nr 2 o 09:39) — nie te same przesunięte o minutę.
+  gimbus_podolszyn: {
+    linia: "Gimbus", stop: "Podolszyn Nowy 02", walk: 5, zPrzystanku: 0,
+    weekday:  ["07:23","09:39"],
+    saturday: [],
+    przyjazdy: { weekday: ["07:26","09:57"], saturday: [] }
+  },
   gimbus: {
     linia: "Gimbus", stop: "Limby", walk: 15, zPrzystanku: 0,   // wysadza pod szkołą
     weekday:  ["07:25","09:52"],
@@ -73,7 +81,7 @@ const LEKCJE_MARYSI = {          // wspólny dla Marysi i Alicji
 /* Dziecko: imię, z jakich kursów może korzystać, plan lekcji. */
 const DZIECI = {
   marysia: { imie: "Marysia", doSzkoly: ["widokowa", "gimbus"],   lekcje: LEKCJE_MARYSI },
-  alicja:  { imie: "Alicja",  doSzkoly: ["podoluszyn", "gimbus"], lekcje: LEKCJE_MARYSI },
+  alicja:  { imie: "Alicja",  doSzkoly: ["podolszyn", "gimbus_podolszyn"], lekcje: LEKCJE_MARYSI },
   janek:   { imie: "Janek",   doSzkoly: ["widokowa", "gimbus"], lekcje: {
     1: { start: "07:45", koniec: "11:05" },
     2: { start: "07:45", koniec: "11:05" },
@@ -99,7 +107,7 @@ function jakoLinia(k) {
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 13,
+  version: 14,
 
   lekcje: PROFIL.lekcje,
 

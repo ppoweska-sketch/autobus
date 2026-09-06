@@ -49,7 +49,7 @@ Od 06.09 aplikacja wybiera między **R3** a **gimbusem** (rozkład SP Łady, gmi
 | Kurs | Przystanek | Kto | Dojście | Kursy |
 |---|---|---|---|---|
 | R3 | Widokowa 02 | Marysia, Janek | 15 min | 14 dz. rob. + 4 sob. |
-| R3 | Podoluszyn Nowy 02 | Alicja | 5 min | jw., 14 min później |
+| R3 | Podolszyn Nowy 02 | Alicja | 5 min | jw., 14 min później |
 | Gimbus | Limby | wszyscy | 15 min | 2 rano, 4 po lekcjach |
 
 **Reguła wyboru:** rano ten kurs, przy którym można wyjść z domu **najpóźniej**
@@ -61,7 +61,7 @@ w rozkładzie gminy, kursów obsługujących tylko jeden z tych przystanków nie
 Wybrane **Limby** — lepsze dojście, a odjazd o minutę późniejszy niż z Widokowej.
 Gimbus wysadza pod szkołą (0 min dojścia) i stamtąd też odjeżdża.
 
-Podoluszyn Nowy 02 leży **14 minut za Widokową 02 na tej samej trasie tego samego
+Podolszyn Nowy 02 leży **14 minut za Widokową 02 na tej samej trasie tego samego
 kursu** — dlatego godziny przyjazdu do szkoły są wspólne dla wszystkich dzieci
 i trzymane w jednym miejscu (`PRZYJAZDY_DO_SZKOLY`). Kto wsiada później, ten
 krócej jedzie; do szkoły docierają o tej samej godzinie.
@@ -98,7 +98,7 @@ W `autobus.js`, blok `PLANY_LEKCJI`. Klucz to dzień tygodnia (1 = poniedziałek
 ```js
 const DZIECI = {
   marysia: { imie: "Marysia", przystanek: "widokowa",   lekcje: LEKCJE_MARYSI },
-  alicja:  { imie: "Alicja",  przystanek: "podoluszyn", lekcje: LEKCJE_MARYSI },
+  alicja:  { imie: "Alicja",  przystanek: "podolszyn", lekcje: LEKCJE_MARYSI },
   janek:   { imie: "Janek",   przystanek: "widokowa",   lekcje: { ... } }
 };
 ```
