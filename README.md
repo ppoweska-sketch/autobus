@@ -66,6 +66,19 @@ kursu** — dlatego godziny przyjazdu do szkoły są wspólne dla wszystkich dzi
 i trzymane w jednym miejscu (`PRZYJAZDY_DO_SZKOLY`). Kto wsiada później, ten
 krócej jedzie; do szkoły docierają o tej samej godzinie.
 
+### Domy
+
+Dzieci **nie mieszkają razem** — Alicja ma inny adres (blok `DOMY` w `autobus.js`):
+
+| Dom | Kto | Współrzędne |
+|---|---|---|
+| Falenty Nowe | Marysia, Janek | 52.139126, 20.942015 |
+| Podolszyn | Alicja | 52.122500, 20.944778 |
+
+Miało to znaczenie: dopóki Alicja miała wpisany dom rodzeństwa, stojąc u siebie była
+1858 m od „domu" i tylko 1248 m od szkoły — aplikacja uznawała, że **jest już w szkole**
+i rano pokazywała jej rozkład powrotny.
+
 ### Szkoła
 
 | | |

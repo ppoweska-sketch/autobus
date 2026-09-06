@@ -70,6 +70,14 @@ const ZE_SZKOLY = {
   }
 };
 
+/* Domy. Alicja mieszka gdzie indziej niż Marysia i Janek — bez tego jej telefon
+   uznawał, że rano jest już w szkole (1248 m do szkoły wobec 1858 m do tamtego domu)
+   i pokazywał rozkład POWROTNY zamiast dojazdowego. */
+const DOMY = {
+  falenty:   { lat: 52.139126, lon: 20.942015 },   // Marysia, Janek
+  podolszyn: { lat: 52.122500, lon: 20.944778 }    // Alicja — 52°07'21.0"N 20°56'41.2"E
+};
+
 const LEKCJE_MARYSI = {          // wspólny dla Marysi i Alicji
   1: { start: "07:45", koniec: "13:05" },
   2: { start: "07:45", koniec: "13:05" },
@@ -80,9 +88,9 @@ const LEKCJE_MARYSI = {          // wspólny dla Marysi i Alicji
 
 /* Dziecko: imię, z jakich kursów może korzystać, plan lekcji. */
 const DZIECI = {
-  marysia: { imie: "Marysia", doSzkoly: ["widokowa", "gimbus"],   lekcje: LEKCJE_MARYSI },
-  alicja:  { imie: "Alicja",  doSzkoly: ["podolszyn", "gimbus_podolszyn"], lekcje: LEKCJE_MARYSI },
-  janek:   { imie: "Janek",   doSzkoly: ["widokowa", "gimbus"], lekcje: {
+  marysia: { imie: "Marysia", dom: "falenty",   doSzkoly: ["widokowa", "gimbus"],            lekcje: LEKCJE_MARYSI },
+  alicja:  { imie: "Alicja",  dom: "podolszyn", doSzkoly: ["podolszyn", "gimbus_podolszyn"], lekcje: LEKCJE_MARYSI },
+  janek:   { imie: "Janek",   dom: "falenty",   doSzkoly: ["widokowa", "gimbus"],            lekcje: {
     1: { start: "07:45", koniec: "11:05" },
     2: { start: "07:45", koniec: "11:05" },
     3: { start: "07:45", koniec: "13:05" },
@@ -107,7 +115,7 @@ function jakoLinia(k) {
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 14,
+  version: 15,
 
   lekcje: PROFIL.lekcje,
 
@@ -116,7 +124,8 @@ const DEFAULT_CONFIG = {
       id: "dom", name: "Dom", emoji: "🏠",
       inPlace: "Jesteś w domu",
       goingTo: "Jedziesz do szkoły",
-      lat: 52.139126, lon: 20.942015,
+      lat: (DOMY[PROFIL.dom] || DOMY.falenty).lat,
+      lon: (DOMY[PROFIL.dom] || DOMY.falenty).lon,
       radius: 300,
       walk: DO_SZKOLY[PROFIL.doSzkoly[0]].walk,
       stop: DO_SZKOLY[PROFIL.doSzkoly[0]].stop,
