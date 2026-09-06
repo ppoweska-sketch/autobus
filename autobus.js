@@ -64,6 +64,7 @@ const ZE_SZKOLY = {
                "11:16","12:21","13:42","14:37","15:37","16:31","17:39","18:19"],
     saturday: ["09:11","11:11","14:11","16:11"],
     // przyjazd na Widokowa 01 — równo 13 min po odjeździe ze szkoły
+    przystanekDocelowy: "Widokowa 01",
     naPrzystanku: ["06:14","06:54","07:49","08:39","09:34","10:24",
                    "11:29","12:34","13:55","14:50","15:50","16:44","17:52","18:32"],
     naPrzystankuSob: ["09:24","11:24","14:24","16:24"],
@@ -77,6 +78,7 @@ const ZE_SZKOLY = {
                "11:16","12:21","13:42","14:37","15:37","16:31","17:39","18:19"],
     saturday: ["09:11","11:11","14:11","16:11"],
     // przyjazd na Podolszyn Nowy 01 — równo 2 min po odjeździe ze szkoły
+    przystanekDocelowy: "Podolszyn Nowy 01",
     naPrzystanku: ["06:03","06:43","07:38","08:28","09:23","10:13",
                    "11:18","12:23","13:44","14:39","15:39","16:33","17:41","18:21"],
     naPrzystankuSob: ["09:13","11:13","14:13","16:13"],
@@ -87,6 +89,7 @@ const ZE_SZKOLY = {
   // czyli inny przystanek. Sprawdzone w rozkładzie gminy 06.09.
   gimbus_limby: {
     linia: "Gimbus", stop: "sprzed szkoły", walk: 0,
+    przystanekDocelowy: "Limby",
     weekday:  ["12:25","13:20","15:15","16:05"],
     saturday: [],
     numery:   ["nr 2","nr 2","nr 2","nr 2"],
@@ -164,6 +167,7 @@ function nieWczesniejNiz(kurs, odKiedy) {
   return { ...kurs, weekday: wybierz(kurs.weekday),
            naPrzystanku: wybierz(kurs.naPrzystanku),
            doPrzystanku: wybierz(kurs.doPrzystanku),
+           przystanekDocelowy: kurs.przystanekDocelowy,
            numery: wybierz(kurs.numery),
            dojsciaZPrzystanku: wybierz(kurs.dojsciaZPrzystanku) };
 }
@@ -175,6 +179,7 @@ function jakoLinia(k) {
     weekday: k.weekday || [], saturday: k.saturday || [], sunday: [],
     naPrzystanku: k.naPrzystanku || null, dojscieDoDomu: k.dojscieDoDomu || 0,
     doPrzystanku: k.doPrzystanku || null,
+    przystanekDocelowy: k.przystanekDocelowy || null,
     numery: k.numery || null,
     dojsciaZPrzystanku: k.dojsciaZPrzystanku || null,
     arrivals: { weekday: (k.przyjazdy || {}).weekday || k.naPrzystanku || [],
@@ -184,7 +189,7 @@ function jakoLinia(k) {
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 24,
+  version: 25,
 
   lekcje: PROFIL.lekcje,
 
@@ -238,6 +243,7 @@ document.getElementById("app").innerHTML = `
     <div id="at"></div>
     <div id="count"></div>
     <div id="arrive"></div>
+  <div id="wDomu"></div>
     <div id="leave"></div>
   <div id="alternatywa"></div>
   </main>
@@ -342,7 +348,7 @@ function nextDepartures(place, now, count) {
           stop: line.stop, walk: line.walk, arriveWalk: line.arriveWalk,
           wyjdz: new Date(when.getTime() - line.walk * 60000),
           numer: (line.numery || [])[idx] || null,
-          celStop: (line.doPrzystanku || [])[idx] || null,
+          celStop: (line.doPrzystanku || [])[idx] || line.przystanekDocelowy || null,
           celWalk: (line.dojsciaZPrzystanku || [])[idx],
           arrive: pierwszyPrzyjazdPo(line, type, base, minutyOdjazdu)
         });
@@ -423,6 +429,7 @@ function normalize(cfg) {
       walk: Number(l.walk) >= 0 ? Number(l.walk) : (Number(p.walk) || 0),
       arriveWalk: Number(l.arriveWalk) >= 0 ? Number(l.arriveWalk) : (Number(p.arriveWalk) || 0),
       doPrzystanku: Array.isArray(l.doPrzystanku) ? l.doPrzystanku : null,
+      przystanekDocelowy: l.przystanekDocelowy || null,
       numery: Array.isArray(l.numery) ? l.numery : null,
       dojsciaZPrzystanku: Array.isArray(l.dojsciaZPrzystanku) ? l.dojsciaZPrzystanku : null,
       weekday: Array.isArray(l.weekday) ? l.weekday : [],
@@ -539,6 +546,7 @@ function render() {
     setText("#at", "");
     setText("#count", "");
     setText("#arrive", "");
+    setText("#wDomu", "");
     setText("#leave", "");
     setClass("#main", "main wolne");
     setText("#foot", hhmm(now) + WERSJA);
@@ -589,6 +597,7 @@ function render() {
     setText("#at", "");
     setText("#count", "");
     setText("#arrive", "");
+    setText("#wDomu", "");
     setText("#leave", "");
     setClass("#main", "main");
     setText("#foot", hhmm(now) + WERSJA);
@@ -615,6 +624,7 @@ function render() {
     setText("#at", "Brak autobusów");
     setText("#count", "");
     setText("#arrive", "");
+    setText("#wDomu", "");
     setText("#leave", "Na dziś i najbliższe dni nie ma nic w rozkładzie.");
     setClass("#main", "main");
   } else {
@@ -643,15 +653,18 @@ function render() {
     //    Pokazujemy TAKŻE dla kursu z następnego dnia — skoro wyżej piszemy
     //    "następny autobus w poniedziałek", to godzina przyjazdu dotyczy tego samego kursu.
     if (d.celStop && d.arrive) {
-      // różne kursy wysadzają na różnych przystankach — nazwa MUSI być widoczna
+      // kursy wysadzają na różnych przystankach — nazwa MUSI być widoczna,
+      // inaczej dziecko wysiądzie tam, gdzie nie chciało
       const marsz = d.celWalk != null ? d.celWalk : (d.arriveWalk || 0);
-      const wDomu = new Date(d.arrive.getTime() + marsz * 60000);
-      setText("#arrive", "Wysiadasz: " + d.celStop + " · w domu " + hhmm(wDomu));
+      setText("#arrive", "Wysiadasz: " + d.celStop);
+      setText("#wDomu", "W domu jesteś o " + hhmm(new Date(d.arrive.getTime() + marsz * 60000)));
     } else if (place.arriveLabel && d.arrive) {
       const naMiejscu = new Date(d.arrive.getTime() + (d.arriveWalk ?? place.arriveWalk ?? 0) * 60000);
       setText("#arrive", place.arriveLabel + " " + hhmm(naMiejscu));
+      setText("#wDomu", "");
     } else {
       setText("#arrive", "");
+      setText("#wDomu", "");
     }
 
     // druga możliwość — tylko tam, gdzie oba kursy wychodzą podobnie
