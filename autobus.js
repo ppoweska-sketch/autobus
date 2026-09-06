@@ -118,7 +118,9 @@ const LEKCJE_MARYSI = {          // wspólny dla Marysi i Alicji
 const DZIECI = {
   marysia: { imie: "Marysia", dom: "falenty",   doSzkoly: ["widokowa", "gimbus"],            zeSzkoly: ["r3_widokowa", "gimbus_limby"],     lekcje: LEKCJE_MARYSI },
   alicja:  { imie: "Alicja",  dom: "podolszyn", doSzkoly: ["podolszyn", "gimbus_podolszyn"], zeSzkoly: ["r3_podolszyn", "gimbus_podolszyn"], lekcje: LEKCJE_MARYSI },
-  janek:   { imie: "Janek",   dom: "falenty",   doSzkoly: ["widokowa", "gimbus"],            zeSzkoly: ["r3_widokowa", "gimbus_limby"],     lekcje: {
+  janek:   { imie: "Janek",   dom: "falenty",   doSzkoly: ["widokowa", "gimbus"],            zeSzkoly: ["r3_widokowa", "gimbus_limby"],
+             powrotGimbusOd: "15:00",   // decyzja Pawła 06.09 — wcześniej ma wracać R3
+             lekcje: {
     1: { start: "07:45", koniec: "11:05" },
     2: { start: "07:45", koniec: "11:05" },
     3: { start: "07:45", koniec: "13:05" },
@@ -131,6 +133,21 @@ const PROFIL = DZIECI[DZIECKO] || DZIECI.marysia;
 const IMIE = PROFIL.imie;
 
 /* Kurs zamieniony na „linię" w formacie, którego używa reszta aplikacji. */
+/* Odsiewa kursy odjeżdżające przed podaną godziną, pilnując tablic równoległych:
+   przyjazdy i nazwy przystanków docelowych muszą zostać dopasowane do odjazdów,
+   inaczej kurs dostałby cudzy przystanek. */
+function nieWczesniejNiz(kurs, odKiedy) {
+  if (!odKiedy) return kurs;
+  const prog = Number(odKiedy.slice(0, 2)) * 60 + Number(odKiedy.slice(3));
+  const zostaw = (kurs.weekday || [])
+    .map((t, i) => [Number(t.slice(0, 2)) * 60 + Number(t.slice(3)), i])
+    .filter(([m]) => m >= prog).map(([, i]) => i);
+  const wybierz = tab => Array.isArray(tab) ? zostaw.map(i => tab[i]).filter(x => x != null) : tab;
+  return { ...kurs, weekday: wybierz(kurs.weekday),
+           naPrzystanku: wybierz(kurs.naPrzystanku),
+           doPrzystanku: wybierz(kurs.doPrzystanku) };
+}
+
 function jakoLinia(k) {
   return {
     number: k.linia, direction: "", stop: k.stop, walk: k.walk,
@@ -145,7 +162,7 @@ function jakoLinia(k) {
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 19,
+  version: 20,
 
   lekcje: PROFIL.lekcje,
 
@@ -172,7 +189,10 @@ const DEFAULT_CONFIG = {
       radius: 300,
       walk: ZE_SZKOLY[(PROFIL.zeSzkoly || ["r3_widokowa"])[0]].walk,
       stop: ZE_SZKOLY[(PROFIL.zeSzkoly || ["r3_widokowa"])[0]].stop,
-      lines: (PROFIL.zeSzkoly || ["r3_widokowa"]).map(k => jakoLinia(ZE_SZKOLY[k]))
+      lines: (PROFIL.zeSzkoly || ["r3_widokowa"]).map(k => jakoLinia(
+        ZE_SZKOLY[k].linia === "Gimbus"
+          ? nieWczesniejNiz(ZE_SZKOLY[k], PROFIL.powrotGimbusOd)
+          : ZE_SZKOLY[k]))
     }
   ]
 };

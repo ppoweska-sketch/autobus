@@ -76,6 +76,11 @@ korzysta z obu przystanków w Podolszynie, a ekran **zawsze pisze, na który wys
 („Wysiadasz: Pętla Podolszyn o 13:38") — bez tego dziecko wysiadłoby nie tam.
 R3 wraca ze szkoły na Widokową 01 równo **+13 min** po odjeździe.
 
+**Janek nie wraca gimbusem przed 15:00** (`powrotGimbusOd` w jego wpisie) — kursy 12:25
+i 13:20 są dla niego odsiewane, więc w środę wraca R3 o 13:42. Reguła działa w aplikacji
+i w skrypcie PDF; przy dodawaniu podobnych ograniczeń trzeba poprawić **oba**, inaczej
+telefon i wydruk pokażą inny kurs. Raz już tak było.
+
 Podolszyn Nowy 02 leży **14 minut za Widokową 02 na tej samej trasie tego samego
 kursu** — dlatego godziny przyjazdu do szkoły są wspólne dla wszystkich dzieci
 i trzymane w jednym miejscu (`PRZYJAZDY_DO_SZKOLY`). Kto wsiada później, ten

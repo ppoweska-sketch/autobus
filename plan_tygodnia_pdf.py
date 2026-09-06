@@ -120,13 +120,25 @@ def wczytaj(kto):
     klucze_pow = re.findall(r'"(\w+)"',
                             re.search(r"zeSzkoly:\s*\[(.*?)\]", profil, re.S).group(1)) \
         if "zeSzkoly" in profil else list(ze_szkoly)
+    # ograniczenie typu „gimbusem nie wcześniej niż o 15:00" — musi działać
+    # tak samo jak w aplikacji, inaczej PDF pokaże inny kurs niż telefon
+    m_od = re.search(r'powrotGimbusOd:\s*"(\d{2}:\d{2})"', profil)
+    gimbus_od = mn(m_od.group(1)) if m_od else None
+
     powroty = []
     for k in klucze_pow:
         t = ze_szkoly[k]
         cele = re.search(r"doPrzystanku:\s*\[(.*?)\]", t, re.S)
-        powroty.append({"linia": tekst(t, "linia"), "stop": tekst(t, "stop"),
-                        "walk": liczba(t, "walk"), "odjazdy": godziny(t, "weekday"),
-                        "cele": re.findall(r'"([^"]+)"', cele.group(1)) if cele else []})
+        linia = tekst(t, "linia")
+        odjazdy = godziny(t, "weekday")
+        lista_celow = re.findall(r'"([^"]+)"', cele.group(1)) if cele else []
+        if gimbus_od is not None and linia == "Gimbus":
+            zostaw = [i for i, o in enumerate(odjazdy) if mn(o) >= gimbus_od]
+            odjazdy = [odjazdy[i] for i in zostaw]
+            lista_celow = [lista_celow[i] for i in zostaw if i < len(lista_celow)]
+        powroty.append({"linia": linia, "stop": tekst(t, "stop"),
+                        "walk": liczba(t, "walk"), "odjazdy": odjazdy,
+                        "cele": lista_celow})
     return imie, plan, rano, powroty
 
 
