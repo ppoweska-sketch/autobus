@@ -189,7 +189,7 @@ function jakoLinia(k) {
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 26,
+  version: 27,
 
   lekcje: PROFIL.lekcje,
 
@@ -942,6 +942,13 @@ function openSettings() {
   save.className = "btn primary"; save.textContent = "Zapisz";
   save.onclick = () => { harvestAll(); saveConfig(draft); closeSettings(); };
   box.appendChild(save);
+
+  // Wyjście do ekranu wyboru dziecka. Bez tego jedyną drogą był adres z ?wybierz,
+  // a aplikacja dodana do ekranu głównego nie ma paska adresu, żeby go wpisać.
+  const zmien = document.createElement("button");
+  zmien.className = "btn"; zmien.textContent = "👧👦 Zmień dziecko";
+  zmien.onclick = () => { location.href = "index.html?wybierz"; };
+  box.appendChild(zmien);
 
   const link = document.createElement("button");
   link.className = "btn"; link.textContent = "🔗 Skopiuj link z tą konfiguracją";
