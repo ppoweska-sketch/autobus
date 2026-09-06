@@ -56,17 +56,45 @@ const DO_SZKOLY = {
 
 /* KURSY ZE SZKOŁY. Gimbus rusza sprzed szkoły (0 min dojścia). */
 const ZE_SZKOLY = {
-  r3: {
+  r3_widokowa: {
+    linia: "Autobus R3", stop: "Łady – Szkoła 01", walk: 2,
+    weekday:  ["06:01","06:41","07:36","08:26","09:21","10:11",
+               "11:16","12:21","13:42","14:37","15:37","16:31","17:39","18:19"],
+    saturday: ["09:11","11:11","14:11","16:11"],
+    // przyjazd na Widokowa 01 — równo 13 min po odjeździe ze szkoły
+    naPrzystanku: ["06:14","06:54","07:49","08:39","09:34","10:24",
+                   "11:29","12:34","13:55","14:50","15:50","16:44","17:52","18:32"],
+    naPrzystankuSob: ["09:24","11:24","14:24","16:24"],
+    dojscieDoDomu: 15
+  },
+  // Alicja: nie znamy godzin przyjazdu R3 na Podolszyn w drodze powrotnej,
+  // więc dla niej porównanie idzie po godzinie odjazdu, nie po dotarciu do domu.
+  r3_podolszyn: {
     linia: "Autobus R3", stop: "Łady – Szkoła 01", walk: 2,
     weekday:  ["06:01","06:41","07:36","08:26","09:21","10:11",
                "11:16","12:21","13:42","14:37","15:37","16:31","17:39","18:19"],
     saturday: ["09:11","11:11","14:11","16:11"]
   },
-  gimbus: {
+  // UWAGA: gimbus wraca RÓŻNYMI trasami. Limby obsługują wszystkie 4 kursy,
+  // Podolszyn Nowy TYLKO ten o 12:25 — pozostałe jadą na „Pętlę Podolszyn",
+  // czyli inny przystanek. Sprawdzone w rozkładzie gminy 06.09.
+  gimbus_limby: {
     linia: "Gimbus", stop: "sprzed szkoły", walk: 0,
     weekday:  ["12:25","13:20","15:15","16:05"],
     saturday: [],
-    naLimby:  ["12:44","13:30","15:17","16:07"]      // godzina powrotu na Limby
+    naPrzystanku: ["12:44","13:30","15:17","16:07"],
+    dojscieDoDomu: 15
+  },
+  // Alicja: gimbus wraca RÓŻNYMI trasami i wysadza na DWÓCH różnych przystankach.
+  // Dlatego każdy kurs niesie nazwę swojego celu — ekran musi ją pokazać, inaczej
+  // dziecko wysiądzie tam, gdzie nie chciało.
+  gimbus_podolszyn: {
+    linia: "Gimbus", stop: "sprzed szkoły", walk: 0,
+    weekday:  ["12:25","13:20","14:36","15:15","16:05"],
+    saturday: [],
+    naPrzystanku: ["12:26","13:38","14:39","15:26","16:18"],
+    doPrzystanku: ["Podolszyn Nowy","Pętla Podolszyn","Pętla Podolszyn",
+                   "Pętla Podolszyn","Pętla Podolszyn"]
   }
 };
 
@@ -88,9 +116,9 @@ const LEKCJE_MARYSI = {          // wspólny dla Marysi i Alicji
 
 /* Dziecko: imię, z jakich kursów może korzystać, plan lekcji. */
 const DZIECI = {
-  marysia: { imie: "Marysia", dom: "falenty",   doSzkoly: ["widokowa", "gimbus"],            lekcje: LEKCJE_MARYSI },
-  alicja:  { imie: "Alicja",  dom: "podolszyn", doSzkoly: ["podolszyn", "gimbus_podolszyn"], lekcje: LEKCJE_MARYSI },
-  janek:   { imie: "Janek",   dom: "falenty",   doSzkoly: ["widokowa", "gimbus"],            lekcje: {
+  marysia: { imie: "Marysia", dom: "falenty",   doSzkoly: ["widokowa", "gimbus"],            zeSzkoly: ["r3_widokowa", "gimbus_limby"],     lekcje: LEKCJE_MARYSI },
+  alicja:  { imie: "Alicja",  dom: "podolszyn", doSzkoly: ["podolszyn", "gimbus_podolszyn"], zeSzkoly: ["r3_podolszyn", "gimbus_podolszyn"], lekcje: LEKCJE_MARYSI },
+  janek:   { imie: "Janek",   dom: "falenty",   doSzkoly: ["widokowa", "gimbus"],            zeSzkoly: ["r3_widokowa", "gimbus_limby"],     lekcje: {
     1: { start: "07:45", koniec: "11:05" },
     2: { start: "07:45", koniec: "11:05" },
     3: { start: "07:45", koniec: "13:05" },
@@ -106,16 +134,18 @@ const IMIE = PROFIL.imie;
 function jakoLinia(k) {
   return {
     number: k.linia, direction: "", stop: k.stop, walk: k.walk,
-    arriveWalk: k.zPrzystanku || 0,
+    arriveWalk: k.zPrzystanku != null ? k.zPrzystanku : (k.dojscieDoDomu || 0),
     weekday: k.weekday || [], saturday: k.saturday || [], sunday: [],
-    arrivals: { weekday: (k.przyjazdy || {}).weekday || [],
-                saturday: (k.przyjazdy || {}).saturday || [], sunday: [] }
+    naPrzystanku: k.naPrzystanku || null, dojscieDoDomu: k.dojscieDoDomu || 0,
+    doPrzystanku: k.doPrzystanku || null,
+    arrivals: { weekday: (k.przyjazdy || {}).weekday || k.naPrzystanku || [],
+                saturday: (k.przyjazdy || {}).saturday || k.naPrzystankuSob || [], sunday: [] }
   };
 }
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 15,
+  version: 19,
 
   lekcje: PROFIL.lekcje,
 
@@ -137,11 +167,12 @@ const DEFAULT_CONFIG = {
       id: "szkola", name: "Szkoła", emoji: "🎒",
       inPlace: "Jesteś w szkole",
       goingTo: "Jedziesz do domu",
+      arriveLabel: "Będziesz w domu o",
       lat: 52.127140, lon: 20.961425,
       radius: 300,
-      walk: ZE_SZKOLY.r3.walk,
-      stop: ZE_SZKOLY.r3.stop,
-      lines: [jakoLinia(ZE_SZKOLY.r3), jakoLinia(ZE_SZKOLY.gimbus)]
+      walk: ZE_SZKOLY[(PROFIL.zeSzkoly || ["r3_widokowa"])[0]].walk,
+      stop: ZE_SZKOLY[(PROFIL.zeSzkoly || ["r3_widokowa"])[0]].stop,
+      lines: (PROFIL.zeSzkoly || ["r3_widokowa"]).map(k => jakoLinia(ZE_SZKOLY[k]))
     }
   ]
 };
@@ -253,22 +284,23 @@ function nextDepartures(place, now, count) {
     const type = dayType(base);
     const found = [];
     for (const line of place.lines || []) {
-      for (const raw of line[type] || []) {
+      (line[type] || []).forEach((raw, idx) => {
         const m = /^\s*(\d{1,2})[:.](\d{2})\s*$/.exec(raw);
-        if (!m) continue;
+        if (!m) return;
         const minutyOdjazdu = Number(m[1]) * 60 + Number(m[2]);
         const when = new Date(base);
         when.setHours(0, minutyOdjazdu, 0, 0);                      // obsługuje też 24:15, 25:00
-        if (when.getTime() < now.getTime() - 30000) continue;
+        if (when.getTime() < now.getTime() - 30000) return;
         // Przyjazd dopasowujemy po godzinie, nie po pozycji w liście — dzięki temu
         // ręczna edycja jednej z list nie rozjeżdża par odjazd/przyjazd.
         found.push({
           line, when,
           stop: line.stop, walk: line.walk, arriveWalk: line.arriveWalk,
           wyjdz: new Date(when.getTime() - line.walk * 60000),
+          celStop: (line.doPrzystanku || [])[idx] || null,
           arrive: pierwszyPrzyjazdPo(line, type, base, minutyOdjazdu)
         });
-      }
+      });
     }
     found.sort((a, b) => a.when - b.when);
     out.push(...found);
@@ -342,6 +374,7 @@ function normalize(cfg) {
       stop: l.stop || p.stop || "",
       walk: Number(l.walk) >= 0 ? Number(l.walk) : (Number(p.walk) || 0),
       arriveWalk: Number(l.arriveWalk) >= 0 ? Number(l.arriveWalk) : (Number(p.arriveWalk) || 0),
+      doPrzystanku: Array.isArray(l.doPrzystanku) ? l.doPrzystanku : null,
       weekday: Array.isArray(l.weekday) ? l.weekday : [],
       saturday: Array.isArray(l.saturday) ? l.saturday : [],
       sunday: Array.isArray(l.sunday) ? l.sunday : [],
@@ -550,7 +583,10 @@ function render() {
     // 6. Będziesz w szkole o 07:34  (przyjazd autobusu + dojście z przystanku)
     //    Pokazujemy TAKŻE dla kursu z następnego dnia — skoro wyżej piszemy
     //    "następny autobus w poniedziałek", to godzina przyjazdu dotyczy tego samego kursu.
-    if (place.arriveLabel && d.arrive) {
+    if (d.celStop && d.arrive) {
+      // kurs wysadza na konkretnym przystanku — nazwa jest ważniejsza niż godzina w domu
+      setText("#arrive", "Wysiadasz: " + d.celStop + " o " + hhmm(d.arrive));
+    } else if (place.arriveLabel && d.arrive) {
       const naMiejscu = new Date(d.arrive.getTime() + (d.arriveWalk ?? place.arriveWalk ?? 0) * 60000);
       setText("#arrive", place.arriveLabel + " " + hhmm(naMiejscu));
     } else {
@@ -624,7 +660,9 @@ function planDnia(dzien) {
     for (const d of linia.weekday || []) {
       if (naMinuty(d) < koniec + (linia.walk || 0)) continue;
       if (!powrot || naMinuty(d) < naMinuty(powrot.odjazd)) {
+        const idx = (linia.weekday || []).indexOf(d);
         powrot = { linia: linia.number, stop: linia.stop, odjazd: d,
+                   cel: (linia.doPrzystanku || [])[idx] || null,
                    czekanie: naMinuty(d) - koniec };
       }
       break;                       // lista jest posortowana, dalej będzie tylko później
@@ -640,6 +678,7 @@ function planDnia(dzien) {
     wSzkole: rano ? naGodzine(rano.wSzkole) : null,
     zapas: rano ? rano.zapas : null,
     liniaPowrot: powrot ? powrot.linia : null,
+    celPowrot: powrot ? powrot.cel : null,
     stopPowrot: powrot ? powrot.stop : null,
     powrot: powrot ? powrot.odjazd : null,
     czekanie: powrot ? powrot.czekanie : null
@@ -669,6 +708,7 @@ function pokazTydzien() {
         p.start + ' – ' + p.koniec + '</b></div>' +
       (p.powrot
         ? '<div class="etap"><span class="opis">Powrót: ' + esc(p.liniaPowrot) +
+          (p.celPowrot ? ' → ' + esc(p.celPowrot) : '') +
           '</span><b>' + p.powrot + '</b>' +
           '<span class="mala">' + p.czekanie + ' min czekania</span></div>'
         : '<div class="etap"><span class="opis">Powrót</span><b>brak kursu</b></div>') +

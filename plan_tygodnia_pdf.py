@@ -117,9 +117,16 @@ def wczytaj(kto):
                      "walk": liczba(t, "walk"), "zPrzystanku": liczba(t, "zPrzystanku"),
                      "odjazdy": godziny(t, "weekday"), "przyjazdy": godziny(przyj, "weekday")})
 
-    powroty = [{"linia": tekst(t, "linia"), "stop": tekst(t, "stop"),
-                "walk": liczba(t, "walk"), "odjazdy": godziny(t, "weekday")}
-               for t in ze_szkoly.values()]
+    klucze_pow = re.findall(r'"(\w+)"',
+                            re.search(r"zeSzkoly:\s*\[(.*?)\]", profil, re.S).group(1)) \
+        if "zeSzkoly" in profil else list(ze_szkoly)
+    powroty = []
+    for k in klucze_pow:
+        t = ze_szkoly[k]
+        cele = re.search(r"doPrzystanku:\s*\[(.*?)\]", t, re.S)
+        powroty.append({"linia": tekst(t, "linia"), "stop": tekst(t, "stop"),
+                        "walk": liczba(t, "walk"), "odjazdy": godziny(t, "weekday"),
+                        "cele": re.findall(r'"([^"]+)"', cele.group(1)) if cele else []})
     return imie, plan, rano, powroty
 
 
@@ -147,14 +154,17 @@ def zbuduj(plan, rano, powroty):
                 if mn(d) < k + kurs["walk"]:
                     continue
                 if pow is None or mn(d) < mn(pow["odjazd"]):
-                    pow = {"linia": kurs["linia"], "odjazd": d}
+                    i = kurs["odjazdy"].index(d)
+                    cel = kurs["cele"][i] if i < len(kurs["cele"]) else None
+                    pow = {"linia": kurs["linia"], "odjazd": d, "cel": cel}
                 break
         if pow is None:
             raise SystemExit(f"{dzien}: brak kursu powrotnego po {koniec}")
 
         wiersze.append([dzien, f"{start}–{koniec}", gg(naj["wyjscie"]),
                         f"{naj['linia']}\n{naj['stop']}", naj["odjazd"],
-                        gg(naj["wSzkole"]), f"{pow['linia']}\n{pow['odjazd']}"])
+                        gg(naj["wSzkole"]), (f"{pow['linia']} → {pow['cel']}\n{pow['odjazd']}" if pow.get("cel")
+                         else f"{pow['linia']}\n{pow['odjazd']}")])
         uwagi.append((dzien, s - naj["wSzkole"], mn(pow["odjazd"]) - k))
     return wiersze, uwagi
 

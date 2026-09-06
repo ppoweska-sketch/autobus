@@ -61,6 +61,21 @@ w rozkładzie gminy, kursów obsługujących tylko jeden z tych przystanków nie
 Wybrane **Limby** — lepsze dojście, a odjazd o minutę późniejszy niż z Widokowej.
 Gimbus wysadza pod szkołą (0 min dojścia) i stamtąd też odjeżdża.
 
+**Gimbus wraca różnymi trasami — to nie jest jedna linia.** Sprawdzone w rozkładzie:
+
+| Odjazd ze szkoły | Limby | Podolszyn Nowy | Pętla Podolszyn |
+|---|---|---|---|
+| 12:25 | 12:44 | **12:26** | 12:28 |
+| 13:20 | 13:30 | — | 13:38 |
+| 14:36 | — | — | 14:39 |
+| 15:15 | 15:17 | — | 15:26 |
+| 16:05 | 16:07 | — | 16:18 |
+
+Limby obsługują wszystkie kursy, **Podolszyn Nowy tylko ten o 12:25**. Dlatego Alicja
+korzysta z obu przystanków w Podolszynie, a ekran **zawsze pisze, na który wysiada**
+(„Wysiadasz: Pętla Podolszyn o 13:38") — bez tego dziecko wysiadłoby nie tam.
+R3 wraca ze szkoły na Widokową 01 równo **+13 min** po odjeździe.
+
 Podolszyn Nowy 02 leży **14 minut za Widokową 02 na tej samej trasie tego samego
 kursu** — dlatego godziny przyjazdu do szkoły są wspólne dla wszystkich dzieci
 i trzymane w jednym miejscu (`PRZYJAZDY_DO_SZKOLY`). Kto wsiada później, ten
