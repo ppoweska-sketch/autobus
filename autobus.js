@@ -16,7 +16,7 @@ const DZIECKO = (window.DZIECKO || "marysia").toLowerCase();
    --------------------------------------------------------------------- */
 const DO_SZKOLY = {
   widokowa: {
-    linia: "Autobus R3", stop: "Widokowa 02", walk: 15, zPrzystanku: 5,
+    linia: "Autobus", stop: "Widokowa 02", walk: 15, zPrzystanku: 5,
     weekday:  ["05:36","06:16","07:11","08:01","08:56","09:46",
                "10:51","11:56","13:17","14:12","15:12","16:06","17:14","17:54"],
     saturday: ["08:46","10:46","13:46","15:46"],
@@ -26,7 +26,7 @@ const DO_SZKOLY = {
       saturday: ["09:04","11:04","14:04","16:04"] }
   },
   podolszyn: {
-    linia: "Autobus R3", stop: "Podolszyn Nowy 02", walk: 5, zPrzystanku: 5,
+    linia: "Autobus", stop: "Podolszyn Nowy 02", walk: 5, zPrzystanku: 5,
     weekday:  ["05:50","06:30","07:25","08:15","09:10","10:00",
                "11:05","12:10","13:31","14:26","15:26","16:20","17:28","18:08"],
     saturday: ["09:00","11:00","14:00","16:00"],
@@ -59,7 +59,7 @@ const DO_SZKOLY = {
 /* KURSY ZE SZKOŁY. Gimbus rusza sprzed szkoły (0 min dojścia). */
 const ZE_SZKOLY = {
   r3_widokowa: {
-    linia: "Autobus R3", stop: "Łady – Szkoła 01", walk: 2,
+    linia: "Autobus", stop: "Łady – Szkoła 01", walk: 2,
     weekday:  ["06:01","06:41","07:36","08:26","09:21","10:11",
                "11:16","12:21","13:42","14:37","15:37","16:31","17:39","18:19"],
     saturday: ["09:11","11:11","14:11","16:11"],
@@ -72,7 +72,7 @@ const ZE_SZKOLY = {
   // Alicja: nie znamy godzin przyjazdu R3 na Podolszyn w drodze powrotnej,
   // więc dla niej porównanie idzie po godzinie odjazdu, nie po dotarciu do domu.
   r3_podolszyn: {
-    linia: "Autobus R3", stop: "Łady – Szkoła 01", walk: 2,
+    linia: "Autobus", stop: "Łady – Szkoła 01", walk: 2,
     weekday:  ["06:01","06:41","07:36","08:26","09:21","10:11",
                "11:16","12:21","13:42","14:37","15:37","16:31","17:39","18:19"],
     saturday: ["09:11","11:11","14:11","16:11"],
@@ -127,7 +127,10 @@ const LEKCJE_MARYSI = {          // wspólny dla Marysi i Alicji
 /* Dziecko: imię, z jakich kursów może korzystać, plan lekcji. */
 const DZIECI = {
   marysia: { imie: "Marysia", dom: "falenty",   doSzkoly: ["widokowa", "gimbus"],            zeSzkoly: ["r3_widokowa", "gimbus_limby"],     lekcje: LEKCJE_MARYSI },
-  alicja:  { imie: "Alicja",  dom: "podolszyn", doSzkoly: ["podolszyn", "gimbus_podolszyn"], zeSzkoly: ["r3_podolszyn", "gimbus_podolszyn"], lekcje: LEKCJE_MARYSI },
+  alicja:  { imie: "Alicja",  dom: "podolszyn", doSzkoly: ["podolszyn", "gimbus_podolszyn"], zeSzkoly: ["r3_podolszyn", "gimbus_podolszyn"],
+             // R3 i gimbus docierają minutę po sobie — niech wybierze sama
+             dwieOpcjePowrotu: true,
+             lekcje: LEKCJE_MARYSI },
   janek:   { imie: "Janek",   dom: "falenty",   doSzkoly: ["widokowa", "gimbus"],            zeSzkoly: ["r3_widokowa", "gimbus_limby"],
              powrotGimbusOd: "15:00",   // decyzja Pawła 06.09 — wcześniej ma wracać R3
              lekcje: {
@@ -176,7 +179,7 @@ function jakoLinia(k) {
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 22,
+  version: 23,
 
   lekcje: PROFIL.lekcje,
 
@@ -203,6 +206,7 @@ const DEFAULT_CONFIG = {
       radius: 300,
       walk: ZE_SZKOLY[(PROFIL.zeSzkoly || ["r3_widokowa"])[0]].walk,
       stop: ZE_SZKOLY[(PROFIL.zeSzkoly || ["r3_widokowa"])[0]].stop,
+      dwieOpcje: !!PROFIL.dwieOpcjePowrotu,
       lines: (PROFIL.zeSzkoly || ["r3_widokowa"]).map(k => jakoLinia(
         ZE_SZKOLY[k].linia === "Gimbus"
           ? nieWczesniejNiz(ZE_SZKOLY[k], PROFIL.powrotGimbusOd)
@@ -230,6 +234,7 @@ document.getElementById("app").innerHTML = `
     <div id="count"></div>
     <div id="arrive"></div>
     <div id="leave"></div>
+  <div id="alternatywa"></div>
   </main>
   <footer id="foot"></footer>`;
 
@@ -403,6 +408,7 @@ function normalize(cfg) {
     walk: Number(p.walk) >= 0 ? Number(p.walk) : 0,
     stop: p.stop || "",
     arriveLabel: p.arriveLabel || "",
+    dwieOpcje: !!p.dwieOpcje,
     arriveWalk: Number(p.arriveWalk) >= 0 ? Number(p.arriveWalk) : 0,
     lines: (Array.isArray(p.lines) ? p.lines : []).map(l => ({
       number: String(l.number ?? "?"),
@@ -495,6 +501,14 @@ function resolvePlace() {
   return { place: best, dist: bestDist, mode: bestDist <= best.radius ? "inside" : "outside" };
 }
 
+/* Krótki opis kursu: „Gimbus nr 2 o 13:20 · w domu 13:48" */
+function opisKursu(d) {
+  const nazwa = d.line.number + (d.numer ? " " + d.numer : "");
+  const marsz = d.celWalk != null ? d.celWalk : (d.arriveWalk || 0);
+  const wDomu = d.arrive ? hhmm(new Date(d.arrive.getTime() + marsz * 60000)) : null;
+  return nazwa + " o " + hhmm(d.when) + (wDomu ? " · w domu " + wDomu : "");
+}
+
 /* ============================ rysowanie ============================ */
 function render() {
   if (!$("#settings").classList.contains("hidden")) return;   // ustawienia otwarte
@@ -575,7 +589,7 @@ function render() {
     return;
   }
 
-  const deps = nextDepartures(place, now, 1);
+  const deps = nextDepartures(place, now, 6);
   const d = deps[0];
 
   // 1. Autobus R3
@@ -633,6 +647,12 @@ function render() {
     } else {
       setText("#arrive", "");
     }
+
+    // druga możliwość — tylko tam, gdzie oba kursy wychodzą podobnie
+    const inna = place.dwieOpcje
+      ? deps.slice(1).find(x => x.line !== d.line && x.when.toDateString() === d.when.toDateString())
+      : null;
+    setText("#alternatywa", inna ? "albo " + opisKursu(inna) : "");
 
     setText("#leave", walk > 0 && sameDay
       ? (mins <= walk
