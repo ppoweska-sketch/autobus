@@ -74,7 +74,12 @@ Gimbus wysadza pod szkołą (0 min dojścia) i stamtąd też odjeżdża.
 Limby obsługują wszystkie kursy, **Podolszyn Nowy tylko ten o 12:25**. Dlatego Alicja
 korzysta z obu przystanków w Podolszynie, a ekran **zawsze pisze, na który wysiada**
 („Wysiadasz: Pętla Podolszyn o 13:38") — bez tego dziecko wysiadłoby nie tam.
-R3 wraca ze szkoły na Widokową 01 równo **+13 min** po odjeździe.
+R3 wraca ze szkoły równo **+13 min** na Widokową 01 i **+2 min** na Podolszyn Nowy 01
+(także w soboty). Dzięki temu powrót wybierany jest po **godzinie dotarcia do domu**,
+nie po samym odjeździe — gimbus bywa wolniejszy albo wysadza dalej.
+
+Przy każdym kursie gimbusa jest **numer autobusu z rozkładu gminy** (nr 1, 2 lub 3),
+bo o tej samej porze spod szkoły potrafią ruszać różne autobusy w różne strony.
 
 **Janek nie wraca gimbusem przed 15:00** (`powrotGimbusOd` w jego wpisie) — kursy 12:25
 i 13:20 są dla niego odsiewane, więc w środę wraca R3 o 13:42. Reguła działa w aplikacji

@@ -44,12 +44,14 @@ const DO_SZKOLY = {
     linia: "Gimbus", stop: "Podolszyn Nowy 02", walk: 5, zPrzystanku: 0,
     weekday:  ["07:23","09:39"],
     saturday: [],
+    numery:   ["nr 3","nr 2"],
     przyjazdy: { weekday: ["07:26","09:57"], saturday: [] }
   },
   gimbus: {
     linia: "Gimbus", stop: "Limby", walk: 15, zPrzystanku: 0,   // wysadza pod szkołą
     weekday:  ["07:25","09:52"],
     saturday: [],
+    numery:   ["nr 2","nr 2"],
     przyjazdy: { weekday: ["07:30","09:57"], saturday: [] }
   }
 };
@@ -73,7 +75,12 @@ const ZE_SZKOLY = {
     linia: "Autobus R3", stop: "Łady – Szkoła 01", walk: 2,
     weekday:  ["06:01","06:41","07:36","08:26","09:21","10:11",
                "11:16","12:21","13:42","14:37","15:37","16:31","17:39","18:19"],
-    saturday: ["09:11","11:11","14:11","16:11"]
+    saturday: ["09:11","11:11","14:11","16:11"],
+    // przyjazd na Podolszyn Nowy 01 — równo 2 min po odjeździe ze szkoły
+    naPrzystanku: ["06:03","06:43","07:38","08:28","09:23","10:13",
+                   "11:18","12:23","13:44","14:39","15:39","16:33","17:41","18:21"],
+    naPrzystankuSob: ["09:13","11:13","14:13","16:13"],
+    dojscieDoDomu: 5
   },
   // UWAGA: gimbus wraca RÓŻNYMI trasami. Limby obsługują wszystkie 4 kursy,
   // Podolszyn Nowy TYLKO ten o 12:25 — pozostałe jadą na „Pętlę Podolszyn",
@@ -82,6 +89,7 @@ const ZE_SZKOLY = {
     linia: "Gimbus", stop: "sprzed szkoły", walk: 0,
     weekday:  ["12:25","13:20","15:15","16:05"],
     saturday: [],
+    numery:   ["nr 2","nr 2","nr 2","nr 2"],
     naPrzystanku: ["12:44","13:30","15:17","16:07"],
     dojscieDoDomu: 15
   },
@@ -92,9 +100,11 @@ const ZE_SZKOLY = {
     linia: "Gimbus", stop: "sprzed szkoły", walk: 0,
     weekday:  ["12:25","13:20","14:36","15:15","16:05"],
     saturday: [],
+    numery:   ["nr 2","nr 2","nr 3","nr 2","nr 2"],
     naPrzystanku: ["12:26","13:38","14:39","15:26","16:18"],
     doPrzystanku: ["Podolszyn Nowy","Pętla Podolszyn","Pętla Podolszyn",
-                   "Pętla Podolszyn","Pętla Podolszyn"]
+                   "Pętla Podolszyn","Pętla Podolszyn"],
+    dojsciaZPrzystanku: [5, 10, 10, 10, 10]   // z Pętli dalej niż z Podolszyna Nowego
   }
 };
 
@@ -145,7 +155,9 @@ function nieWczesniejNiz(kurs, odKiedy) {
   const wybierz = tab => Array.isArray(tab) ? zostaw.map(i => tab[i]).filter(x => x != null) : tab;
   return { ...kurs, weekday: wybierz(kurs.weekday),
            naPrzystanku: wybierz(kurs.naPrzystanku),
-           doPrzystanku: wybierz(kurs.doPrzystanku) };
+           doPrzystanku: wybierz(kurs.doPrzystanku),
+           numery: wybierz(kurs.numery),
+           dojsciaZPrzystanku: wybierz(kurs.dojsciaZPrzystanku) };
 }
 
 function jakoLinia(k) {
@@ -155,6 +167,8 @@ function jakoLinia(k) {
     weekday: k.weekday || [], saturday: k.saturday || [], sunday: [],
     naPrzystanku: k.naPrzystanku || null, dojscieDoDomu: k.dojscieDoDomu || 0,
     doPrzystanku: k.doPrzystanku || null,
+    numery: k.numery || null,
+    dojsciaZPrzystanku: k.dojsciaZPrzystanku || null,
     arrivals: { weekday: (k.przyjazdy || {}).weekday || k.naPrzystanku || [],
                 saturday: (k.przyjazdy || {}).saturday || k.naPrzystankuSob || [], sunday: [] }
   };
@@ -162,7 +176,7 @@ function jakoLinia(k) {
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 20,
+  version: 22,
 
   lekcje: PROFIL.lekcje,
 
@@ -317,7 +331,9 @@ function nextDepartures(place, now, count) {
           line, when,
           stop: line.stop, walk: line.walk, arriveWalk: line.arriveWalk,
           wyjdz: new Date(when.getTime() - line.walk * 60000),
+          numer: (line.numery || [])[idx] || null,
           celStop: (line.doPrzystanku || [])[idx] || null,
+          celWalk: (line.dojsciaZPrzystanku || [])[idx],
           arrive: pierwszyPrzyjazdPo(line, type, base, minutyOdjazdu)
         });
       });
@@ -395,6 +411,8 @@ function normalize(cfg) {
       walk: Number(l.walk) >= 0 ? Number(l.walk) : (Number(p.walk) || 0),
       arriveWalk: Number(l.arriveWalk) >= 0 ? Number(l.arriveWalk) : (Number(p.arriveWalk) || 0),
       doPrzystanku: Array.isArray(l.doPrzystanku) ? l.doPrzystanku : null,
+      numery: Array.isArray(l.numery) ? l.numery : null,
+      dojsciaZPrzystanku: Array.isArray(l.dojsciaZPrzystanku) ? l.dojsciaZPrzystanku : null,
       weekday: Array.isArray(l.weekday) ? l.weekday : [],
       saturday: Array.isArray(l.saturday) ? l.saturday : [],
       sunday: Array.isArray(l.sunday) ? l.sunday : [],
@@ -561,7 +579,8 @@ function render() {
   const d = deps[0];
 
   // 1. Autobus R3
-  setText("#lineTitle", (d ? d.line.number : (place.lines[0] || {}).number || "Autobus"));
+  setText("#lineTitle", d ? (d.line.number + (d.numer ? " " + d.numer : ""))
+                        : ((place.lines[0] || {}).number || "Autobus"));
 
   // 2. Jesteś w domu / w szkole
   setText("#whereAmI", mode === "inside" || mode === "manual"
@@ -604,8 +623,10 @@ function render() {
     //    Pokazujemy TAKŻE dla kursu z następnego dnia — skoro wyżej piszemy
     //    "następny autobus w poniedziałek", to godzina przyjazdu dotyczy tego samego kursu.
     if (d.celStop && d.arrive) {
-      // kurs wysadza na konkretnym przystanku — nazwa jest ważniejsza niż godzina w domu
-      setText("#arrive", "Wysiadasz: " + d.celStop + " o " + hhmm(d.arrive));
+      // różne kursy wysadzają na różnych przystankach — nazwa MUSI być widoczna
+      const marsz = d.celWalk != null ? d.celWalk : (d.arriveWalk || 0);
+      const wDomu = new Date(d.arrive.getTime() + marsz * 60000);
+      setText("#arrive", "Wysiadasz: " + d.celStop + " · w domu " + hhmm(wDomu));
     } else if (place.arriveLabel && d.arrive) {
       const naMiejscu = new Date(d.arrive.getTime() + (d.arriveWalk ?? place.arriveWalk ?? 0) * 60000);
       setText("#arrive", place.arriveLabel + " " + hhmm(naMiejscu));
@@ -667,26 +688,31 @@ function planDnia(dzien) {
       if (wSzkole > start) return;
       const wyjscie = naMinuty(o) - (linia.walk || 0);
       if (!rano || wyjscie > rano.wyjscie) {
-        rano = { linia: linia.number, stop: linia.stop, odjazd: o, wSzkole, wyjscie,
-                 zapas: start - wSzkole };
+        rano = { linia: linia.number + ((linia.numery || [])[i] ? " " + linia.numery[i] : ""),
+                 stop: linia.stop, odjazd: o, wSzkole, wyjscie, zapas: start - wSzkole };
       }
     });
   }
 
-  /* PO LEKCJACH: najkrótsze czekanie, czyli najwcześniejszy odjazd, na który
-     da się dojść z budynku szkoły. */
+  /* PO LEKCJACH: liczy się godzina dotarcia DO DOMU, nie sam odjazd. Gimbus bywa
+     wolniejszy albo wysadza dalej, więc wcześniejszy odjazd nie zawsze wygrywa. */
   let powrot = null;
   for (const linia of szkola.lines || []) {
-    for (const d of linia.weekday || []) {
-      if (naMinuty(d) < koniec + (linia.walk || 0)) continue;
-      if (!powrot || naMinuty(d) < naMinuty(powrot.odjazd)) {
-        const idx = (linia.weekday || []).indexOf(d);
-        powrot = { linia: linia.number, stop: linia.stop, odjazd: d,
-                   cel: (linia.doPrzystanku || [])[idx] || null,
+    (linia.weekday || []).forEach((d, i) => {
+      if (naMinuty(d) < koniec + (linia.walk || 0)) return;
+      const przyj = (linia.arrivals?.weekday || [])[i];
+      const marsz = (linia.dojsciaZPrzystanku || [])[i] ?? linia.arriveWalk ?? 0;
+      const wDomu = przyj ? naMinuty(przyj) + marsz : null;
+      const lepszy = !powrot
+        || (wDomu != null && powrot.wDomu != null && wDomu < powrot.wDomu)
+        || (powrot.wDomu == null && naMinuty(d) < naMinuty(powrot.odjazd));
+      if (lepszy) {
+        powrot = { linia: linia.number + ((linia.numery || [])[i] ? " " + linia.numery[i] : ""),
+                   stop: linia.stop, odjazd: d, wDomu,
+                   cel: (linia.doPrzystanku || [])[i] || null,
                    czekanie: naMinuty(d) - koniec };
       }
-      break;                       // lista jest posortowana, dalej będzie tylko później
-    }
+    });
   }
 
   return {
@@ -699,6 +725,7 @@ function planDnia(dzien) {
     zapas: rano ? rano.zapas : null,
     liniaPowrot: powrot ? powrot.linia : null,
     celPowrot: powrot ? powrot.cel : null,
+    wDomu: powrot && powrot.wDomu != null ? naGodzine(powrot.wDomu) : null,
     stopPowrot: powrot ? powrot.stop : null,
     powrot: powrot ? powrot.odjazd : null,
     czekanie: powrot ? powrot.czekanie : null

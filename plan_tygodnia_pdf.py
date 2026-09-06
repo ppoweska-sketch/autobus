@@ -113,9 +113,11 @@ def wczytaj(kto):
             raise SystemExit(f"{kto}: kurs {k!r} nie istnieje w DO_SZKOLY")
         t = do_szkoly[k]
         przyj = re.search(r"przyjazdy:\s*\{(.*?)\}", t, re.S).group(1)
+        nry = re.search(r"numery:\s*\[(.*?)\]", t, re.S)
         rano.append({"linia": tekst(t, "linia"), "stop": tekst(t, "stop"),
                      "walk": liczba(t, "walk"), "zPrzystanku": liczba(t, "zPrzystanku"),
-                     "odjazdy": godziny(t, "weekday"), "przyjazdy": godziny(przyj, "weekday")})
+                     "odjazdy": godziny(t, "weekday"), "przyjazdy": godziny(przyj, "weekday"),
+                     "numery": re.findall(r'"([^"]+)"', nry.group(1)) if nry else []})
 
     klucze_pow = re.findall(r'"(\w+)"',
                             re.search(r"zeSzkoly:\s*\[(.*?)\]", profil, re.S).group(1)) \
@@ -129,16 +131,19 @@ def wczytaj(kto):
     for k in klucze_pow:
         t = ze_szkoly[k]
         cele = re.search(r"doPrzystanku:\s*\[(.*?)\]", t, re.S)
+        nry = re.search(r"numery:\s*\[(.*?)\]", t, re.S)
         linia = tekst(t, "linia")
         odjazdy = godziny(t, "weekday")
         lista_celow = re.findall(r'"([^"]+)"', cele.group(1)) if cele else []
+        lista_nrow = re.findall(r'"([^"]+)"', nry.group(1)) if nry else []
         if gimbus_od is not None and linia == "Gimbus":
             zostaw = [i for i, o in enumerate(odjazdy) if mn(o) >= gimbus_od]
             odjazdy = [odjazdy[i] for i in zostaw]
             lista_celow = [lista_celow[i] for i in zostaw if i < len(lista_celow)]
+            lista_nrow = [lista_nrow[i] for i in zostaw if i < len(lista_nrow)]
         powroty.append({"linia": linia, "stop": tekst(t, "stop"),
                         "walk": liczba(t, "walk"), "odjazdy": odjazdy,
-                        "cele": lista_celow})
+                        "cele": lista_celow, "numery": lista_nrow})
     return imie, plan, rano, powroty
 
 
@@ -155,7 +160,10 @@ def zbuduj(plan, rano, powroty):
                     continue
                 wyjscie = mn(o) - kurs["walk"]
                 if naj is None or wyjscie > naj["wyjscie"]:
-                    naj = {"linia": kurs["linia"], "stop": kurs["stop"], "odjazd": o,
+                    i = kurs["odjazdy"].index(o)
+                    nr = kurs["numery"][i] if i < len(kurs["numery"]) else ""
+                    naj = {"linia": kurs["linia"] + (" " + nr if nr else ""),
+                           "stop": kurs["stop"], "odjazd": o,
                            "wSzkole": w_szkole, "wyjscie": wyjscie}
         if naj is None:
             raise SystemExit(f"{dzien}: żaden kurs nie dowozi przed {start}")
@@ -168,14 +176,17 @@ def zbuduj(plan, rano, powroty):
                 if pow is None or mn(d) < mn(pow["odjazd"]):
                     i = kurs["odjazdy"].index(d)
                     cel = kurs["cele"][i] if i < len(kurs["cele"]) else None
-                    pow = {"linia": kurs["linia"], "odjazd": d, "cel": cel}
+                    nr = kurs["numery"][i] if i < len(kurs["numery"]) else ""
+                    pow = {"linia": kurs["linia"] + (" " + nr if nr else ""),
+                           "odjazd": d, "cel": cel}
                 break
         if pow is None:
             raise SystemExit(f"{dzien}: brak kursu powrotnego po {koniec}")
 
         wiersze.append([dzien, f"{start}–{koniec}", gg(naj["wyjscie"]),
                         f"{naj['linia']}\n{naj['stop']}", naj["odjazd"],
-                        gg(naj["wSzkole"]), (f"{pow['linia']} → {pow['cel']}\n{pow['odjazd']}" if pow.get("cel")
+                        gg(naj["wSzkole"]),
+                        (f"{pow['linia']}\n→ {pow['cel']}\n{pow['odjazd']}" if pow.get("cel")
                          else f"{pow['linia']}\n{pow['odjazd']}")])
         uwagi.append((dzien, s - naj["wSzkole"], mn(pow["odjazd"]) - k))
     return wiersze, uwagi
@@ -199,8 +210,8 @@ def main():
     naglowki = ["", "Lekcje", "Wyjdź\nz domu", "Czym jedziesz", "Odjazd",
                 "W szkole\njesteś", "Powrót"]
     tab = Table([naglowki] + wiersze,
-                colWidths=[28 * mm, 24 * mm, 20 * mm, 40 * mm, 20 * mm, 21 * mm, 33 * mm],
-                rowHeights=[15 * mm] + [15 * mm] * 5)
+                colWidths=[26 * mm, 23 * mm, 20 * mm, 34 * mm, 19 * mm, 20 * mm, 44 * mm],
+                rowHeights=[15 * mm] + [17 * mm] * 5)
     tab.setStyle(TableStyle([
         ("FONTNAME", (0, 0), (-1, 0), "PL-B"), ("FONTSIZE", (0, 0), (-1, 0), 9),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -210,7 +221,7 @@ def main():
         ("FONTSIZE", (3, 1), (3, -1), 8.5),
         ("FONTNAME", (2, 1), (2, -1), "PL-B"), ("FONTSIZE", (2, 1), (2, -1), 13),
         ("TEXTCOLOR", (2, 1), (2, -1), colors.HexColor("#1d4ed8")),
-        ("FONTNAME", (6, 1), (6, -1), "PL-B"), ("FONTSIZE", (6, 1), (6, -1), 9),
+        ("FONTNAME", (6, 1), (6, -1), "PL-B"), ("FONTSIZE", (6, 1), (6, -1), 8),
         ("TEXTCOLOR", (6, 1), (6, -1), colors.HexColor("#1d4ed8")),
         ("ALIGN", (1, 0), (-1, -1), "CENTER"), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("LEFTPADDING", (0, 1), (0, -1), 6),
