@@ -132,6 +132,7 @@ def wczytaj(kto):
         t = ze_szkoly[k]
         cele = re.search(r"doPrzystanku:\s*\[(.*?)\]", t, re.S)
         nry = re.search(r"numery:\s*\[(.*?)\]", t, re.S)
+        staly_cel = tekst(t, "przystanekDocelowy")
         linia = tekst(t, "linia")
         odjazdy = godziny(t, "weekday")
         lista_celow = re.findall(r'"([^"]+)"', cele.group(1)) if cele else []
@@ -141,6 +142,8 @@ def wczytaj(kto):
             odjazdy = [odjazdy[i] for i in zostaw]
             lista_celow = [lista_celow[i] for i in zostaw if i < len(lista_celow)]
             lista_nrow = [lista_nrow[i] for i in zostaw if i < len(lista_nrow)]
+        if not lista_celow and staly_cel:
+            lista_celow = [staly_cel] * len(odjazdy)
         powroty.append({"linia": linia, "stop": tekst(t, "stop"),
                         "walk": liczba(t, "walk"), "odjazdy": odjazdy,
                         "cele": lista_celow, "numery": lista_nrow})

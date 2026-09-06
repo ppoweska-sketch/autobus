@@ -189,7 +189,7 @@ function jakoLinia(k) {
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 25,
+  version: 26,
 
   lekcje: PROFIL.lekcje,
 
@@ -748,7 +748,7 @@ function planDnia(dzien) {
       if (lepszy) {
         powrot = { linia: linia.number + ((linia.numery || [])[i] ? " " + linia.numery[i] : ""),
                    stop: linia.stop, odjazd: d, wDomu,
-                   cel: (linia.doPrzystanku || [])[i] || null,
+                   cel: (linia.doPrzystanku || [])[i] || linia.przystanekDocelowy || null,
                    czekanie: naMinuty(d) - koniec };
       }
     });
@@ -796,7 +796,9 @@ function pokazTydzien() {
         ? '<div class="etap"><span class="opis">Powrót: ' + esc(p.liniaPowrot) +
           (p.celPowrot ? ' → ' + esc(p.celPowrot) : '') +
           '</span><b>' + p.powrot + '</b>' +
-          '<span class="mala">' + p.czekanie + ' min czekania</span></div>'
+          '<span class="mala">' + p.czekanie + ' min czekania</span></div>' +
+          (p.wDomu ? '<div class="etap"><span class="opis">W domu jesteś o</span><b>' +
+                     p.wDomu + '</b></div>' : '')
         : '<div class="etap"><span class="opis">Powrót</span><b>brak kursu</b></div>') +
       '</div>';
   }
