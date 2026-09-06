@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """
-Generuje plan_tygodnia.pdf — jedna strona A4 z rozpiską na cały tydzień.
+Generuje plan_tygodnia_<dziecko>.pdf — jedna strona A4 z rozpiską na cały tydzień.
 
-Godziny NIE są tu wpisane na sztywno: skrypt czyta rozkład wprost z index.html,
-więc PDF nie może się rozjechać z aplikacją. Sprawdza przy okazji, że przejazd
-do szkoły trwa 18 min, a kurs powrotny odjeżdża 25 min po odjeździe spod domu —
-jeśli któreś przesunięcie przestanie być stałe, przerywa zamiast wypisać
-wiarygodnie wyglądające bzdury.
+Dane czyta z autobus.js, więc PDF nie może rozjechać się z aplikacją, i stosuje
+DOKŁADNIE te same reguły wyboru kursu:
+  rano       — wyjść z domu jak najpóźniej, byle zdążyć przed dzwonkiem
+  po lekcjach — najkrótsze czekanie, czyli najwcześniejszy osiągalny odjazd
 
-Uruchomienie:  ../claude\\ trading\\ bot/.venv/bin/python plan_tygodnia_pdf.py
+Uwaga na przyszłość: parsowanie JavaScriptu wyrażeniami regularnymi jest kruche
+i pękało już przy każdej zmianie struktury konfiguracji. Dlatego każdy brakujący
+element przerywa działanie — lepiej brak PDF-u niż PDF z cichym błędem.
+
+    "../claude trading bot/.venv/bin/python" plan_tygodnia_pdf.py janek
 """
 import re
 import sys
@@ -27,108 +30,143 @@ ZRODLO = Path(__file__).with_name("autobus.js")
 DZIECKO = (sys.argv[1] if len(sys.argv) > 1 else "marysia").lower()
 WYNIK = Path(__file__).with_name(f"plan_tygodnia_{DZIECKO}.pdf")
 
-# Wbudowane fonty reportlaba (Helvetica) nie mają ł, ś, ż, ć, ę — trzeba osadzić TTF.
+# Wbudowane fonty reportlaba nie mają ł, ś, ż, ć, ę — trzeba osadzić TTF.
 pdfmetrics.registerFont(TTFont("PL", "/System/Library/Fonts/Supplemental/Arial.ttf"))
 pdfmetrics.registerFont(TTFont("PL-B", "/System/Library/Fonts/Supplemental/Arial Bold.ttf"))
 
-DO_SZKOLY, NA_PRZYSTANEK = 5, 2   # dojście z przystanku do szkoły / ze szkoły na przystanek
-Z_DOMU = None                     # zależy od dziecka, ustawiane w main()
-
 DNI = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek"]
-PLAN_LEKCJI = None
+
+mn = lambda s: int(s[:2]) * 60 + int(s[3:])
+gg = lambda t: f"{t // 60:02d}:{t % 60:02d}"
 
 
-def _tablica(zrodlo, nazwa):
-    m = re.search(nazwa + r"\s*:\s*\[(.*?)\]", zrodlo, re.S)
+def blok(src, nazwa):
+    """Wycina `const NAZWA = { ... };` licząc nawiasy klamrowe."""
+    i = src.index(f"const {nazwa}")
+    i = src.index("{", i)
+    glebokosc, j = 0, i
+    while True:
+        if src[j] == "{": glebokosc += 1
+        elif src[j] == "}":
+            glebokosc -= 1
+            if glebokosc == 0: return src[i:j + 1]
+        j += 1
+
+
+def wpisy(tresc):
+    """Dzieli obiekt na pary klucz -> treść wpisu (jeden poziom zagnieżdżenia)."""
+    out, i = {}, 0
+    for m in re.finditer(r"(\w+)\s*:\s*\{", tresc):
+        if tresc.count("{", 0, m.start()) - tresc.count("}", 0, m.start()) != 1:
+            continue                                   # zagnieżdżone głębiej
+        start = m.end() - 1
+        glebokosc, j = 0, start
+        while True:
+            if tresc[j] == "{": glebokosc += 1
+            elif tresc[j] == "}":
+                glebokosc -= 1
+                if glebokosc == 0: break
+            j += 1
+        out[m.group(1)] = tresc[start:j + 1]
+    return out
+
+
+def godziny(tresc, nazwa):
+    m = re.search(nazwa + r"\s*:\s*\[(.*?)\]", tresc, re.S)
     return re.findall(r'"(\d{2}:\d{2})"', m.group(1)) if m else []
 
 
+def liczba(tresc, nazwa, domyslnie=0):
+    m = re.search(nazwa + r"\s*:\s*(\d+)", tresc)
+    return int(m.group(1)) if m else domyslnie
+
+
+def tekst(tresc, nazwa):
+    m = re.search(nazwa + r'\s*:\s*"([^"]*)"', tresc)
+    return m.group(1) if m else ""
+
+
 def wczytaj(kto):
-    """Czyta z autobus.js: plan lekcji, przystanek domowy i rozkłady.
-    Jedno źródło prawdy z aplikacją — PDF nie może się z nią rozjechać."""
     src = ZRODLO.read_text(encoding="utf-8")
+    do_szkoly = wpisy(blok(src, "DO_SZKOLY"))
+    ze_szkoly = wpisy(blok(src, "ZE_SZKOLY"))
+    dzieci = wpisy(blok(src, "DZIECI"))
+    if kto not in dzieci:
+        raise SystemExit(f"nie znam dziecka {kto!r}; są: {', '.join(dzieci)}")
+    profil = dzieci[kto]
 
-    # które dziecko, z którego przystanku i jaki plan lekcji
-    blok_dzieci = src[src.index("const DZIECI"):src.index("const PROFIL")]
-    m = re.search(kto + r"\s*:\s*\{(.*?)\n  \}", blok_dzieci, re.S) \
-        or re.search(kto + r"\s*:\s*\{([^}]*\}[^}]*)\}", blok_dzieci, re.S)
-    if not m:
-        raise SystemExit(f"nie znalazłem dziecka {kto!r} w autobus.js")
-    wpis = m.group(1)
-    przystanek = re.search(r'przystanek:\s*"(\w+)"', wpis).group(1)
+    imie = tekst(profil, "imie")
+    klucze = re.findall(r'"(\w+)"', re.search(r"doSzkoly:\s*\[(.*?)\]", profil, re.S).group(1))
 
-    nazwa_planu = re.search(r"lekcje:\s*(\w+)", wpis)
-    if nazwa_planu and nazwa_planu.group(1) != "{":
-        blok_planu = src[src.index("const " + nazwa_planu.group(1)):]
-        blok_planu = blok_planu[:blok_planu.index("};")]
-    else:
-        blok_planu = wpis
+    # plan lekcji: albo wprost we wpisie, albo przez nazwę wspólnego obiektu
+    m = re.search(r"lekcje:\s*(\w+)", profil)
+    zrodlo_planu = blok(src, m.group(1)) if m else profil
     pary = re.findall(r'(\d):\s*\{\s*start:\s*"(\d{2}:\d{2})",\s*koniec:\s*"(\d{2}:\d{2})"',
-                      blok_planu)[:5]
+                      zrodlo_planu)[:5]
     if len(pary) != 5:
         raise SystemExit(f"niepełny plan lekcji dla {kto!r}")
     plan = [(DNI[int(d) - 1], a, b) for d, a, b in pary]
 
-    # rozkład z przystanku domowego dziecka
-    blok_przyst = src[src.index("const PRZYSTANKI_DOMOWE"):src.index("const PRZYJAZDY_DO_SZKOLY")]
-    czesc = blok_przyst[blok_przyst.index(przystanek + ":"):]
-    odjazd = _tablica(czesc, "weekday")
-    nazwa_przystanku = re.search(r'stop:\s*"([^"]+)"', czesc).group(1)
-    dojscie = int(re.search(r"walk:\s*(\d+)", czesc).group(1))
+    rano = []
+    for k in klucze:
+        if k not in do_szkoly:
+            raise SystemExit(f"{kto}: kurs {k!r} nie istnieje w DO_SZKOLY")
+        t = do_szkoly[k]
+        przyj = re.search(r"przyjazdy:\s*\{(.*?)\}", t, re.S).group(1)
+        rano.append({"linia": tekst(t, "linia"), "stop": tekst(t, "stop"),
+                     "walk": liczba(t, "walk"), "zPrzystanku": liczba(t, "zPrzystanku"),
+                     "odjazdy": godziny(t, "weekday"), "przyjazdy": godziny(przyj, "weekday")})
 
-    blok_przyj = src[src.index("const PRZYJAZDY_DO_SZKOLY"):src.index("const LEKCJE_MARYSI")]
-    przyjazd = _tablica(blok_przyj, "weekday")
-
-    blok_szk = src[src.index('id: "szkola"'):]
-    powrot = _tablica(blok_szk, "weekday")
-
-    # kontrola: przejazd i kurs powrotny muszą mieć STAŁE przesunięcie
-    przejazd = {mn(b) - mn(a) for a, b in zip(odjazd, przyjazd)}
-    powrotne = {mn(b) - mn(a) for a, b in zip(odjazd, powrot)}
-    if len(przejazd) != 1 or len(powrotne) != 1:
-        raise SystemExit(f"przesunięcia nie są stałe (przejazd {sorted(przejazd)}, "
-                         f"powrót {sorted(powrotne)}) — rozkład z niewłaściwego słupka?")
-    return plan, odjazd, przyjazd, powrot, nazwa_przystanku, dojscie, przejazd.pop()
+    powroty = [{"linia": tekst(t, "linia"), "stop": tekst(t, "stop"),
+                "walk": liczba(t, "walk"), "odjazdy": godziny(t, "weekday")}
+               for t in ze_szkoly.values()]
+    return imie, plan, rano, powroty
 
 
-def mn(s):
-    h, m = s.split(":")
-    return int(h) * 60 + int(m)
-
-
-def gg(t):
-    return f"{t // 60:02d}:{t % 60:02d}"
-
-
-def zbuduj_wiersze(odjazd, przyjazd, powrot):
+def zbuduj(plan, rano, powroty):
     wiersze, uwagi = [], []
-    for dzien, start, koniec in PLAN_LEKCJI:
+    for dzien, start, koniec in plan:
         s, k = mn(start), mn(koniec)
-        # rano: ostatni kurs, który dowozi do szkoły przed dzwonkiem
-        kandydaci = [(o, p) for o, p in zip(odjazd, przyjazd) if mn(p) + DO_SZKOLY <= s]
-        if not kandydaci:
+
+        naj = None
+        for kurs in rano:
+            for o, p in zip(kurs["odjazdy"], kurs["przyjazdy"]):
+                w_szkole = mn(p) + kurs["zPrzystanku"]
+                if w_szkole > s:
+                    continue
+                wyjscie = mn(o) - kurs["walk"]
+                if naj is None or wyjscie > naj["wyjscie"]:
+                    naj = {"linia": kurs["linia"], "stop": kurs["stop"], "odjazd": o,
+                           "wSzkole": w_szkole, "wyjscie": wyjscie}
+        if naj is None:
             raise SystemExit(f"{dzien}: żaden kurs nie dowozi przed {start}")
-        o, p = kandydaci[-1]
-        w_szkole = mn(p) + DO_SZKOLY
-        # po lekcjach: pierwszy odjazd, na który da się dojść
-        pozniejsze = [d for d in powrot if mn(d) >= k + NA_PRZYSTANEK]
-        if not pozniejsze:
+
+        pow = None
+        for kurs in powroty:
+            for d in kurs["odjazdy"]:
+                if mn(d) < k + kurs["walk"]:
+                    continue
+                if pow is None or mn(d) < mn(pow["odjazd"]):
+                    pow = {"linia": kurs["linia"], "odjazd": d}
+                break
+        if pow is None:
             raise SystemExit(f"{dzien}: brak kursu powrotnego po {koniec}")
-        wiersze.append([dzien, start, gg(mn(o) - Z_DOMU), o, gg(w_szkole), koniec, pozniejsze[0]])
-        uwagi.append((dzien, s - w_szkole, mn(pozniejsze[0]) - k))
+
+        wiersze.append([dzien, f"{start}–{koniec}", gg(naj["wyjscie"]),
+                        f"{naj['linia']}\n{naj['stop']}", naj["odjazd"],
+                        gg(naj["wSzkole"]), f"{pow['linia']}\n{pow['odjazd']}"])
+        uwagi.append((dzien, s - naj["wSzkole"], mn(pow["odjazd"]) - k))
     return wiersze, uwagi
 
 
 def main():
-    global PLAN_LEKCJI, Z_DOMU
-    (PLAN_LEKCJI, odjazd, przyjazd, powrot,
-     nazwa_przystanku, Z_DOMU, przejazd) = wczytaj(DZIECKO)
-    wiersze, uwagi = zbuduj_wiersze(odjazd, przyjazd, powrot)
+    imie, plan, rano, powroty = wczytaj(DZIECKO)
+    wiersze, uwagi = zbuduj(plan, rano, powroty)
 
     doc = SimpleDocTemplate(str(WYNIK), pagesize=A4,
-                            leftMargin=14 * mm, rightMargin=14 * mm,
+                            leftMargin=12 * mm, rightMargin=12 * mm,
                             topMargin=16 * mm, bottomMargin=14 * mm,
-                            title=f"Autobus R3 — plan tygodnia — {DZIECKO}", author="")
+                            title=f"Autobus — plan tygodnia — {imie}", author="")
     tytul = ParagraphStyle("t", fontName="PL-B", fontSize=21, leading=25,
                            alignment=TA_CENTER, textColor=colors.HexColor("#0e1526"))
     podtytul = ParagraphStyle("p", fontName="PL", fontSize=10.5, leading=15,
@@ -136,60 +174,49 @@ def main():
     stopka = ParagraphStyle("s", fontName="PL", fontSize=9, leading=14,
                             textColor=colors.HexColor("#42506f"))
 
-    naglowki = ["", "Początek\nlekcji", "Wyjdź\nz domu", "Odjazd\nautobusu",
-                "W szkole\njesteś", "Koniec\nlekcji", "Odjazd\nautobusu"]
-    dane = [naglowki] + wiersze
-
-    tab = Table(dane, colWidths=[34 * mm] + [24 * mm] * 6, rowHeights=[15 * mm] + [14 * mm] * 5)
+    naglowki = ["", "Lekcje", "Wyjdź\nz domu", "Czym jedziesz", "Odjazd",
+                "W szkole\njesteś", "Powrót"]
+    tab = Table([naglowki] + wiersze,
+                colWidths=[28 * mm, 24 * mm, 20 * mm, 40 * mm, 20 * mm, 21 * mm, 33 * mm],
+                rowHeights=[15 * mm] + [15 * mm] * 5)
     tab.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (-1, 0), "PL-B"),
-        ("FONTSIZE", (0, 0), (-1, 0), 9.5),
+        ("FONTNAME", (0, 0), (-1, 0), "PL-B"), ("FONTSIZE", (0, 0), (-1, 0), 9),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#18213a")),
-        ("FONTNAME", (0, 1), (0, -1), "PL-B"),
-        ("FONTSIZE", (0, 1), (0, -1), 11),
-        ("FONTNAME", (1, 1), (-1, -1), "PL"),
-        ("FONTSIZE", (1, 1), (-1, -1), 13),
-        # dwie kolumny, na które dziecko patrzy najczęściej
-        ("FONTNAME", (2, 1), (2, -1), "PL-B"),
+        ("FONTNAME", (0, 1), (0, -1), "PL-B"), ("FONTSIZE", (0, 1), (0, -1), 10),
+        ("FONTNAME", (1, 1), (-1, -1), "PL"), ("FONTSIZE", (1, 1), (-1, -1), 11),
+        ("FONTSIZE", (3, 1), (3, -1), 8.5),
+        ("FONTNAME", (2, 1), (2, -1), "PL-B"), ("FONTSIZE", (2, 1), (2, -1), 13),
         ("TEXTCOLOR", (2, 1), (2, -1), colors.HexColor("#1d4ed8")),
-        ("FONTNAME", (6, 1), (6, -1), "PL-B"),
+        ("FONTNAME", (6, 1), (6, -1), "PL-B"), ("FONTSIZE", (6, 1), (6, -1), 9),
         ("TEXTCOLOR", (6, 1), (6, -1), colors.HexColor("#1d4ed8")),
-        ("ALIGN", (1, 0), (-1, -1), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 1), (0, -1), 8),
+        ("ALIGN", (1, 0), (-1, -1), "CENTER"), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 1), (0, -1), 6),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f2f5fb")]),
         ("LINEBELOW", (0, 0), (-1, -2), 0.5, colors.HexColor("#d5dcea")),
         ("BOX", (0, 0), (-1, -1), 0.9, colors.HexColor("#18213a")),
         ("LINEAFTER", (0, 0), (0, -1), 0.9, colors.HexColor("#18213a")),
-        ("LINEAFTER", (4, 0), (4, -1), 0.9, colors.HexColor("#18213a")),
+        ("LINEAFTER", (5, 0), (5, -1), 0.9, colors.HexColor("#18213a")),
     ]))
 
-    najciasniejszy = min(uwagi, key=lambda u: u[1])
+    naj = min(uwagi, key=lambda u: u[1])
     czekania = sorted({c for _, _, c in uwagi})
 
-    tresc = [
-        Paragraph(f"Autobus R3 — plan tygodnia — {DZIECKO.capitalize()}", tytul),
+    doc.build([
+        Paragraph(f"Plan tygodnia — {imie}", tytul),
         Spacer(1, 3 * mm),
-        Paragraph(f"rano: {nazwa_przystanku} &rarr; Łady – Szkoła 02 ({przejazd} min)"
-                  f"&nbsp;&nbsp;·&nbsp;&nbsp;po lekcjach: Łady – Szkoła 01 &rarr; dom", podtytul),
+        Paragraph("wybrany kurs to ten, przy którym wychodzisz z domu najpóźniej "
+                  "i najkrócej czekasz po lekcjach", podtytul),
         Spacer(1, 7 * mm),
         tab,
         Spacer(1, 8 * mm),
-        Paragraph(f"<b>Jak dobrane:</b> rano ostatni kurs, który dowozi przed dzwonkiem; "
-                  f"po lekcjach pierwszy kurs, na który da się zdążyć. "
-                  f"Dojście z domu na przystanek {Z_DOMU} min, z przystanku do szkoły "
-                  f"{DO_SZKOLY} min, ze szkoły na przystanek {NA_PRZYSTANEK} min.", stopka),
+        Paragraph(f"<b>Uwaga:</b> najmniejszy zapas jest w {naj[0].lower()} — "
+                  f"{naj[1]} min od przyjścia do szkoły do dzwonka. "
+                  f"Po lekcjach czekasz {czekania[0]}–{czekania[-1]} min.", stopka),
         Spacer(1, 2 * mm),
-        Paragraph(f"<b>Uwaga:</b> najmniejszy zapas jest w {najciasniejszy[0].lower()} — "
-                  f"tylko {najciasniejszy[1]} min od przyjścia do szkoły do dzwonka. "
-                  f"Po lekcjach czeka się na autobus "
-                  f"{czekania[0]}–{czekania[-1]} min, codziennie.", stopka),
-        Spacer(1, 2 * mm),
-        Paragraph("W soboty autobus jeździ (4 kursy), w niedziele i święta nie jeździ wcale.",
-                  stopka),
-    ]
-    doc.build(tresc)
+        Paragraph("Gimbus jeździ tylko w dni nauki i nie kursuje w soboty. "
+                  "W soboty jeździ wyłącznie R3, w niedziele i święta nic.", stopka),
+    ])
     print(f"zapisano {WYNIK}")
     for d, z, c in uwagi:
         print(f"  {d:<13} zapas {z:>2} min, czekanie {c:>2} min")
