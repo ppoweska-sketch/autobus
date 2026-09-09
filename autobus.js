@@ -96,18 +96,20 @@ const ZE_SZKOLY = {
     naPrzystanku: ["12:44","13:30","15:17","16:07"],
     dojscieDoDomu: 15
   },
-  // Alicja: gimbus wraca RÓŻNYMI trasami i wysadza na DWÓCH różnych przystankach.
-  // Dlatego każdy kurs niesie nazwę swojego celu — ekran musi ją pokazać, inaczej
-  // dziecko wysiądzie tam, gdzie nie chciało.
+  // Alicja: „Pętla Podolszyn" ODPADA — decyzja Pawła 09.09. Z pięciu kursów gimbusa
+  // zostaje jedyny, który wysadza na Podolszynie Nowym: 12:25. Pozostałe cztery
+  // (13:20, 14:36, 15:15, 16:05) jechały na Pętlę i zostały usunięte.
+  // Kurs 12:25 nie mieści się w żadnym z jej dni (lekcje kończą się 13:05 albo 15:55),
+  // więc w praktyce Alicja wraca teraz zawsze R3 — gimbus zostaje w danych na wypadek
+  // zmiany planu lekcji.
   gimbus_podolszyn: {
     linia: "Gimbus", stop: "sprzed szkoły", walk: 0,
-    weekday:  ["12:25","13:20","14:36","15:15","16:05"],
+    weekday:  ["12:25"],
     saturday: [],
-    numery:   ["nr 2","nr 2","nr 3","nr 2","nr 2"],
-    naPrzystanku: ["12:26","13:38","14:39","15:26","16:18"],
-    doPrzystanku: ["Podolszyn Nowy","Pętla Podolszyn","Pętla Podolszyn",
-                   "Pętla Podolszyn","Pętla Podolszyn"],
-    dojsciaZPrzystanku: [5, 10, 10, 10, 10]   // z Pętli dalej niż z Podolszyna Nowego
+    numery:   ["nr 2"],
+    naPrzystanku: ["12:26"],
+    doPrzystanku: ["Podolszyn Nowy"],
+    dojsciaZPrzystanku: [5]
   }
 };
 
@@ -189,7 +191,7 @@ function jakoLinia(k) {
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 28,
+  version: 29,
 
   lekcje: PROFIL.lekcje,
 

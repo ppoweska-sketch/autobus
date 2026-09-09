@@ -71,9 +71,13 @@ Gimbus wysadza pod szkołą (0 min dojścia) i stamtąd też odjeżdża.
 | 15:15 | 15:17 | — | 15:26 |
 | 16:05 | 16:07 | — | 16:18 |
 
-Limby obsługują wszystkie kursy, **Podolszyn Nowy tylko ten o 12:25**. Dlatego Alicja
-korzysta z obu przystanków w Podolszynie, a ekran **zawsze pisze, na który wysiada**
-(„Wysiadasz: Pętla Podolszyn o 13:38") — bez tego dziecko wysiadłoby nie tam.
+Limby obsługują wszystkie kursy, **Podolszyn Nowy tylko ten o 12:25**.
+
+**Pętla Podolszyn odpada** (decyzja Pawła 09.09) — Alicji zostaje z gimbusa wyłącznie
+kurs 12:25 na Podolszyn Nowy. Ponieważ jej lekcje kończą się 13:05 albo 15:55, ten kurs
+nie mieści się w żadnym dniu i **Alicja wraca zawsze R3**. Kurs został w danych na wypadek
+zmiany planu lekcji. Ekran mimo to **zawsze pisze, na który przystanek wysiada**
+(„Wysiadasz: Podolszyn Nowy") — bez tego dziecko wysiadłoby nie tam.
 R3 wraca ze szkoły równo **+13 min** na Widokową 01 i **+2 min** na Podolszyn Nowy 01
 (także w soboty). Dzięki temu powrót wybierany jest po **godzinie dotarcia do domu**,
 nie po samym odjeździe — gimbus bywa wolniejszy albo wysadza dalej.
