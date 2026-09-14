@@ -131,7 +131,11 @@ const LEKCJE_MARYSI = {          // wspólny dla Marysi i Alicji
 
 /* Dziecko: imię, z jakich kursów może korzystać, plan lekcji. */
 const DZIECI = {
-  marysia: { imie: "Marysia", dom: "falenty",   doSzkoly: ["widokowa", "gimbus"],            zeSzkoly: ["r3_widokowa", "gimbus_limby"],     lekcje: LEKCJE_MARYSI },
+  marysia: { imie: "Marysia", dom: "falenty",   doSzkoly: ["widokowa", "gimbus"],            zeSzkoly: ["r3_widokowa", "gimbus_limby"],
+             lekcje: LEKCJE_MARYSI,
+             // Angielski to OSOBNE pole, a nie zmiana LEKCJE_MARYSI — ten plan dzieli
+             // z nią Alicja, która na angielski nie chodzi.
+             angielski: { 1: { start: "13:55", koniec: "15:25" }, 4: { start: "09:15", koniec: "10:45" } } },
   alicja:  { imie: "Alicja",  dom: "podolszyn", doSzkoly: ["podolszyn", "gimbus_podolszyn"], zeSzkoly: ["r3_podolszyn", "gimbus_podolszyn"],
              // R3 i gimbus docierają minutę po sobie — niech wybierze sama
              dwieOpcjePowrotu: true,
@@ -143,6 +147,7 @@ const DZIECI = {
              // w środę (gimbus 13:20 dowiózłby na 13:45, R3 dowozi na 14:10) —
              // i tak ma zostać.
              powrotGimbusOd: "15:00",
+             angielski: { 1: { start: "12:15", koniec: "13:45" }, 5: { start: "07:55", koniec: "09:25" } },
              lekcje: {
     1: { start: "07:45", koniec: "11:05" },
     2: { start: "07:45", koniec: "11:05" },
@@ -154,6 +159,26 @@ const DZIECI = {
 
 const PROFIL = DZIECI[DZIECKO] || DZIECI.marysia;
 const IMIE = PROFIL.imie;
+
+/* ANGIELSKI (decyzja Pawła 14.09). Czas między angielskim a lekcjami dziecko spędza
+   w szkole, więc dzień szkolny trwa od pierwszych do ostatnich zajęć. Jeśli PIERWSZE
+   zajęcia dnia to angielski — rano jedzie tylko R3. Jeśli OSTATNIE — wraca tylko R3.
+   Zasada obowiązuje na wszystkich trzech powierzchniach: ekranie głównym, planie
+   tygodnia i w PDF-ie (plan_tygodnia_pdf.py liczy to samo). */
+const naMin = s => Number(s.slice(0, s.indexOf(":"))) * 60 + Number(s.slice(s.indexOf(":") + 1));
+function dzienSzkolny(dzien, cfg) {
+  const l = cfg?.lekcje?.[dzien];
+  if (!l) return null;
+  const a = cfg?.angielski?.[dzien] || null;
+  return {
+    lekcje: l, angielski: a,
+    start: a && naMin(a.start) < naMin(l.start) ? a.start : l.start,
+    koniec: a && naMin(a.koniec) > naMin(l.koniec) ? a.koniec : l.koniec,
+    ranoTylkoR3: !!a && naMin(a.start) < naMin(l.start),
+    powrotTylkoR3: !!a && naMin(a.koniec) > naMin(l.koniec)
+  };
+}
+const jestR3 = linia => /\bR3\b/.test(linia.number || "");
 
 /* Kurs zamieniony na „linię" w formacie, którego używa reszta aplikacji. */
 /* Odsiewa kursy odjeżdżające przed podaną godziną, pilnując tablic równoległych:
@@ -191,9 +216,10 @@ function jakoLinia(k) {
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 29,
+  version: 30,
 
   lekcje: PROFIL.lekcje,
+  angielski: PROFIL.angielski || {},
 
   places: [
     {
@@ -336,7 +362,12 @@ function nextDepartures(place, now, count) {
     base.setHours(0, 0, 0, 0);
     const type = dayType(base);
     const found = [];
+    // dzień z angielskim na początku (rano) albo na końcu (powrót) — tylko R3
+    const ds = type === "weekday" ? dzienSzkolny(base.getDay(), config) : null;
+    const tylkoR3 = !!ds && (place.id === "dom" ? ds.ranoTylkoR3
+                          : place.id === "szkola" ? ds.powrotTylkoR3 : false);
     for (const line of place.lines || []) {
+      if (tylkoR3 && !jestR3(line)) continue;
       (line[type] || []).forEach((raw, idx) => {
         const m = /^\s*(\d{1,2})[:.](\d{2})\s*$/.exec(raw);
         if (!m) return;
@@ -452,9 +483,17 @@ function normalize(cfg) {
       lekcje[d] = { start: l.start, koniec: l.koniec };
     }
   }
+  const angielski = {};
+  for (const d of [1, 2, 3, 4, 5]) {
+    const a = cfg?.angielski?.[d];
+    if (a && /^\d{1,2}:\d{2}$/.test(a.start || "") && /^\d{1,2}:\d{2}$/.test(a.koniec || "")) {
+      angielski[d] = { start: a.start, koniec: a.koniec };
+    }
+  }
   return {
     version: Number(cfg?.version) || 0,
     lekcje,
+    angielski,
     places: places.length ? places : structuredClone(DEFAULT_CONFIG).places
   };
 }
@@ -711,18 +750,20 @@ const naGodzine = t => pad(Math.floor(t / 60)) + ":" + pad(t % 60);
    Te same reguły co w PDF-ie — rano ostatni kurs zdążający przed dzwonkiem,
    po lekcjach pierwszy, na który da się dojść. */
 function planDnia(dzien) {
-  const l = config.lekcje?.[dzien];
-  const dom = config.places.find(p => p.arriveLabel);
-  const szkola = config.places.find(p => p !== dom);
-  if (!l || !dom || !szkola) return null;
+  const ds = dzienSzkolny(dzien, config);
+  const dom = config.places.find(p => p.id === "dom");
+  const szkola = config.places.find(p => p.id === "szkola");
+  if (!ds || !dom || !szkola) return null;
 
-  const start = naMinuty(l.start), koniec = naMinuty(l.koniec);
+  // dzień szkolny = od pierwszych do ostatnich zajęć (lekcje albo angielski)
+  const start = naMinuty(ds.start), koniec = naMinuty(ds.koniec);
 
   /* RANO: spośród kursów, które zdążą przed dzwonkiem, wybieramy ten pozwalający
      wyjść z domu NAJPÓŹNIEJ. To nie to samo co „najpóźniejszy odjazd" — kursy
      ruszają z różnych przystanków, więc różnią się czasem dojścia. */
   let rano = null;
   for (const linia of dom.lines || []) {
+    if (ds.ranoTylkoR3 && !jestR3(linia)) continue;
     (linia.weekday || []).forEach((o, i) => {
       const przyj = (linia.arrivals?.weekday || [])[i];
       if (!przyj) return;
@@ -740,6 +781,7 @@ function planDnia(dzien) {
      wolniejszy albo wysadza dalej, więc wcześniejszy odjazd nie zawsze wygrywa. */
   let powrot = null;
   for (const linia of szkola.lines || []) {
+    if (ds.powrotTylkoR3 && !jestR3(linia)) continue;
     (linia.weekday || []).forEach((d, i) => {
       if (naMinuty(d) < koniec + (linia.walk || 0)) return;
       const przyj = (linia.arrivals?.weekday || [])[i];
@@ -758,7 +800,8 @@ function planDnia(dzien) {
   }
 
   return {
-    dzien, nazwa: DNI_PL[dzien], start: l.start, koniec: l.koniec,
+    dzien, nazwa: DNI_PL[dzien], start: ds.lekcje.start, koniec: ds.lekcje.koniec,
+    angielski: ds.angielski, angielskiNajpierw: ds.ranoTylkoR3,
     linia: rano ? rano.linia : null,
     stop: rano ? rano.stop : null,
     zDomu: rano ? naGodzine(rano.wyjscie) : null,
@@ -783,6 +826,12 @@ function pokazTydzien() {
     const p = planDnia(d);
     if (!p) continue;
     const dzis = d === dzisiaj ? " dzis" : "";
+    const wierszLekcji = '<div class="etap lekcje"><span class="opis">Lekcje</span><b>' +
+      p.start + ' – ' + p.koniec + '</b></div>';
+    const wierszAng = p.angielski
+      ? '<div class="etap lekcje"><span class="opis">Angielski</span><b>' +
+        p.angielski.start + ' – ' + p.angielski.koniec + '</b></div>'
+      : '';
     html +=
       '<div class="dzien' + dzis + '">' +
       '<h3>' + p.nazwa + (dzis ? ' <span class="znacznik">dziś</span>' : '') + '</h3>' +
@@ -791,10 +840,10 @@ function pokazTydzien() {
           '<div class="etap"><span class="opis">' + esc(p.linia) + ' — ' + esc(p.stop) +
           '</span><b>' + p.odjazd + '</b></div>' +
           '<div class="etap"><span class="opis">W szkole jesteś</span><b>' + p.wSzkole + '</b>' +
-          '<span class="mala">' + p.zapas + ' min przed lekcjami</span></div>'
+          '<span class="mala">' + p.zapas + ' min przed ' +
+            (p.angielskiNajpierw ? 'angielskim' : 'lekcjami') + '</span></div>'
         : '<div class="etap"><span class="opis">Rano</span><b>brak kursu</b></div>') +
-      '<div class="etap lekcje"><span class="opis">Lekcje</span><b>' +
-        p.start + ' – ' + p.koniec + '</b></div>' +
+      (p.angielskiNajpierw ? wierszAng + wierszLekcji : wierszLekcji + wierszAng) +
       (p.powrot
         ? '<div class="etap"><span class="opis">Powrót: ' + esc(p.liniaPowrot) +
           (p.celPowrot ? ' → ' + esc(p.celPowrot) : '') +

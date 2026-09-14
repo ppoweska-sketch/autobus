@@ -98,14 +98,43 @@ def wczytaj(kto):
     imie = tekst(profil, "imie")
     klucze = re.findall(r'"(\w+)"', re.search(r"doSzkoly:\s*\[(.*?)\]", profil, re.S).group(1))
 
-    # plan lekcji: albo wprost we wpisie, albo przez nazwę wspólnego obiektu
-    m = re.search(r"lekcje:\s*(\w+)", profil)
-    zrodlo_planu = blok(src, m.group(1)) if m else profil
-    pary = re.findall(r'(\d):\s*\{\s*start:\s*"(\d{2}:\d{2})",\s*koniec:\s*"(\d{2}:\d{2})"',
-                      zrodlo_planu)[:5]
-    if len(pary) != 5:
-        raise SystemExit(f"niepełny plan lekcji dla {kto!r}")
-    plan = [(DNI[int(d) - 1], a, b) for d, a, b in pary]
+    # Każde pole z dniami czytamy z WŁASNEGO bloku klamrowego. Wcześniej wyrażenie
+    # zbierało pierwsze pięć „N: { start, koniec }" z całego wpisu dziecka — gdy przed
+    # lekcjami stanęło pole angielski, Janek dostał godziny angielskiego jako lekcje,
+    # a kontrola „jest 5 wpisów" to przepuściła.
+    dni_re = r'(\d):\s*\{\s*start:\s*"(\d{2}:\d{2})",\s*koniec:\s*"(\d{2}:\d{2})"'
+
+    def blok_pola(tresc, pole):
+        m = re.search(r"\b" + pole + r":\s*", tresc)
+        if not m:
+            return None
+        if tresc[m.end()] != "{":              # nazwa wspólnego obiektu, np. LEKCJE_MARYSI
+            return blok(src, re.match(r"\w+", tresc[m.end():]).group(0))
+        i = m.end()
+        glebokosc, j = 0, i
+        while True:
+            if tresc[j] == "{": glebokosc += 1
+            elif tresc[j] == "}":
+                glebokosc -= 1
+                if glebokosc == 0: return tresc[i:j + 1]
+            j += 1
+
+    zrodlo_planu = blok_pola(profil, "lekcje")
+    if zrodlo_planu is None:
+        raise SystemExit(f"{kto}: brak pola lekcje")
+    pary = re.findall(dni_re, zrodlo_planu)
+    if [int(d) for d, _, _ in pary] != [1, 2, 3, 4, 5]:
+        raise SystemExit(f"{kto}: plan lekcji nie ma dokładnie dni 1–5, odczytane: {pary}")
+
+    # angielski: osobne pole dziecka, tylko w wybrane dni
+    angielski = {}
+    a_zrodlo = blok_pola(profil, "angielski")
+    if a_zrodlo is not None:
+        a_pary = re.findall(dni_re, a_zrodlo)
+        if not a_pary or len(a_pary) != a_zrodlo.count("start:"):
+            raise SystemExit(f"{kto}: nie odczytałem całego pola angielski: {a_zrodlo}")
+        angielski = {int(d): (a, b) for d, a, b in a_pary}
+    plan = [(DNI[int(d) - 1], a, b, angielski.get(int(d))) for d, a, b in pary]
 
     rano = []
     for k in klucze:
@@ -152,11 +181,21 @@ def wczytaj(kto):
 
 def zbuduj(plan, rano, powroty):
     wiersze, uwagi = [], []
-    for dzien, start, koniec in plan:
+    for dzien, start, koniec, ang in plan:
+        # Dzień szkolny = od pierwszych do ostatnich zajęć; między angielskim a lekcjami
+        # dziecko zostaje w szkole. Angielski na początku dnia -> rano tylko R3,
+        # na końcu -> powrót tylko R3. Ta sama reguła co dzienSzkolny() w autobus.js.
         s, k = mn(start), mn(koniec)
+        rano_r3 = powrot_r3 = False
+        if ang:
+            if mn(ang[0]) < s: s, rano_r3 = mn(ang[0]), True
+            if mn(ang[1]) > k: k, powrot_r3 = mn(ang[1]), True
+        pierwsze = gg(s)
 
         naj = None
         for kurs in rano:
+            if rano_r3 and not re.search(r"\bR3\b", kurs["linia"]):
+                continue
             for o, p in zip(kurs["odjazdy"], kurs["przyjazdy"]):
                 w_szkole = mn(p) + kurs["zPrzystanku"]
                 if w_szkole > s:
@@ -169,10 +208,12 @@ def zbuduj(plan, rano, powroty):
                            "stop": kurs["stop"], "odjazd": o,
                            "wSzkole": w_szkole, "wyjscie": wyjscie}
         if naj is None:
-            raise SystemExit(f"{dzien}: żaden kurs nie dowozi przed {start}")
+            raise SystemExit(f"{dzien}: żaden kurs nie dowozi przed {pierwsze}")
 
         pow = None
         for kurs in powroty:
+            if powrot_r3 and not re.search(r"\bR3\b", kurs["linia"]):
+                continue
             for d in kurs["odjazdy"]:
                 if mn(d) < k + kurs["walk"]:
                     continue
@@ -184,9 +225,13 @@ def zbuduj(plan, rano, powroty):
                            "odjazd": d, "cel": cel}
                 break
         if pow is None:
-            raise SystemExit(f"{dzien}: brak kursu powrotnego po {koniec}")
+            raise SystemExit(f"{dzien}: brak kursu powrotnego po {gg(k)}")
 
-        wiersze.append([dzien, f"{start}–{koniec}", gg(naj["wyjscie"]),
+        zajecia = f"{start}–{koniec}"
+        if ang:
+            wiersz_ang = f"ang. {ang[0]}–{ang[1]}"
+            zajecia = f"{wiersz_ang}\n{zajecia}" if rano_r3 else f"{zajecia}\n{wiersz_ang}"
+        wiersze.append([dzien, zajecia, gg(naj["wyjscie"]),
                         f"{naj['linia']}\n{naj['stop']}", naj["odjazd"],
                         gg(naj["wSzkole"]),
                         (f"{pow['linia']}\n→ {pow['cel']}\n{pow['odjazd']}" if pow.get("cel")
@@ -213,7 +258,7 @@ def main():
     naglowki = ["", "Lekcje", "Wyjdź\nz domu", "Czym jedziesz", "Odjazd",
                 "W szkole\njesteś", "Powrót"]
     tab = Table([naglowki] + wiersze,
-                colWidths=[26 * mm, 23 * mm, 20 * mm, 34 * mm, 19 * mm, 20 * mm, 44 * mm],
+                colWidths=[26 * mm, 29 * mm, 20 * mm, 34 * mm, 19 * mm, 20 * mm, 38 * mm],
                 rowHeights=[15 * mm] + [17 * mm] * 5)
     tab.setStyle(TableStyle([
         ("FONTNAME", (0, 0), (-1, 0), "PL-B"), ("FONTSIZE", (0, 0), (-1, 0), 9),
@@ -222,6 +267,7 @@ def main():
         ("FONTNAME", (0, 1), (0, -1), "PL-B"), ("FONTSIZE", (0, 1), (0, -1), 10),
         ("FONTNAME", (1, 1), (-1, -1), "PL"), ("FONTSIZE", (1, 1), (-1, -1), 11),
         ("FONTSIZE", (3, 1), (3, -1), 8.5),
+        ("FONTSIZE", (1, 1), (1, -1), 9.5),     # lekcje + ewentualnie angielski w 2 liniach
         ("FONTNAME", (2, 1), (2, -1), "PL-B"), ("FONTSIZE", (2, 1), (2, -1), 13),
         ("TEXTCOLOR", (2, 1), (2, -1), colors.HexColor("#1d4ed8")),
         ("FONTNAME", (6, 1), (6, -1), "PL-B"), ("FONTSIZE", (6, 1), (6, -1), 8),

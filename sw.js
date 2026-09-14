@@ -1,6 +1,6 @@
 /* Service worker — pozwala uruchomić aplikację bez internetu.
    Po zmianie plików podnieś numer wersji, żeby telefon pobrał nowe. */
-const CACHE = "autobus-v29";
+const CACHE = "autobus-v30";
 const FILES = [
   "./",
   "./index.html",
