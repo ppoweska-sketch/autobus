@@ -53,6 +53,21 @@ const DO_SZKOLY = {
     saturday: [],
     numery:   ["nr 2","nr 2"],
     przyjazdy: { weekday: ["07:30","09:57"], saturday: [] }
+  },
+  // Dzień, w którym PIERWSZE zajęcia to Early Stage (angielski): ten sam R3 z Widokowej,
+  // ale wysiadka na Łady 02 — równo +16 min po odjeździe (Łady–Szkoła 02 to +18).
+  // Z Łady 02 do Early Stage 3 min pieszo (podał Paweł 15.09).
+  widokowa_lady02: {
+    linia: "Autobus R3", naglowek: "Autobus", stop: "Widokowa 02", walk: 15, zPrzystanku: 3,
+    przystanekDocelowy: "Łady 02", celLabel: "Będziesz w Early Stage o",
+    goingTo: "Jedziesz na Early Stage",
+    weekday:  ["05:36","06:16","07:11","08:01","08:56","09:46",
+               "10:51","11:56","13:17","14:12","15:12","16:06","17:14","17:54"],
+    saturday: [],
+    przyjazdy: {
+      weekday:  ["05:52","06:32","07:27","08:17","09:12","10:02",
+                 "11:07","12:12","13:33","14:28","15:28","16:22","17:30","18:10"],
+      saturday: [] }
   }
 };
 
@@ -110,8 +125,27 @@ const ZE_SZKOLY = {
     naPrzystanku: ["12:26"],
     doPrzystanku: ["Podolszyn Nowy"],
     dojsciaZPrzystanku: [5]
+  },
+  // Dzień, w którym OSTATNIE zajęcia to Early Stage: odjazd z Łady 01 — to ten sam R3
+  // co z Łady–Szkoła 01, minutę później. Przyjazd na Widokową 01 bez zmian.
+  // Dojście z Early Stage na Łady 01 przyjęte jak na Łady 02 (3 min) — przy obecnych
+  // godzinach każda wartość do 13 min daje ten sam kurs.
+  r3_lady01: {
+    linia: "Autobus R3", naglowek: "Autobus", stop: "Łady 01", walk: 3,
+    weekday:  ["06:02","06:42","07:37","08:27","09:22","10:12",
+               "11:17","12:22","13:43","14:38","15:38","16:32","17:40","18:20"],
+    saturday: [],
+    przystanekDocelowy: "Widokowa 01",
+    naPrzystanku: ["06:14","06:54","07:49","08:39","09:34","10:24",
+                   "11:29","12:34","13:55","14:50","15:50","16:44","17:52","18:32"],
+    dojscieDoDomu: 15
   }
 };
+
+/* Early Stage (angielski Marysi i Janka) — OSOBNE MIEJSCE z własnym rozkładem i własnym
+   przystankiem (decyzja Pawła 15.09). 52°07'33.7"N 20°57'25.5"E, 321 m od punktu szkoły.
+   Promień 150 m, żeby nie zachodził na szkołę (jej promień to 300 m). */
+const EARLY_STAGE = { lat: 52.126028, lon: 20.957083, radius: 150 };
 
 /* Domy. Alicja mieszka gdzie indziej niż Marysia i Janek — bez tego jej telefon
    uznawał, że rano jest już w szkole (1248 m do szkoły wobec 1858 m do tamtego domu)
@@ -133,6 +167,7 @@ const LEKCJE_MARYSI = {          // wspólny dla Marysi i Alicji
 const DZIECI = {
   marysia: { imie: "Marysia", dom: "falenty",   doSzkoly: ["widokowa", "gimbus"],            zeSzkoly: ["r3_widokowa", "gimbus_limby"],
              lekcje: LEKCJE_MARYSI,
+             naEarlyStage: ["widokowa_lady02"], zEarlyStage: ["r3_lady01"],
              // Angielski to OSOBNE pole, a nie zmiana LEKCJE_MARYSI — ten plan dzieli
              // z nią Alicja, która na angielski nie chodzi.
              angielski: { 1: { start: "13:55", koniec: "15:25" }, 4: { start: "09:15", koniec: "10:45" } } },
@@ -148,6 +183,7 @@ const DZIECI = {
              // i tak ma zostać.
              powrotGimbusOd: "15:00",
              angielski: { 1: { start: "12:15", koniec: "13:45" }, 5: { start: "07:55", koniec: "09:25" } },
+             naEarlyStage: ["widokowa_lady02"], zEarlyStage: ["r3_lady01"],
              lekcje: {
     1: { start: "07:45", koniec: "11:05" },
     2: { start: "07:45", koniec: "11:05" },
@@ -180,6 +216,24 @@ function dzienSzkolny(dzien, cfg) {
 }
 const jestR3 = linia => /\bR3\b/.test(linia.number || "");
 
+/* Które linie z danego miejsca obowiązują w danym dniu. Early Stage jest OSOBNYM
+   miejscem z własnym przystankiem (Łady 01) — dlatego to on obsługuje powrót w dni,
+   gdy angielski jest ostatni, a "szkola" w te dni nie oferuje NIC: dziecko nie wsiada
+   do autobusu spod szkoły, tylko idzie na piechotę do Early Stage.
+   - "dom", dzień gdy angielski jest pierwszy: tylko kursy oznaczone gdyAngielski
+     (R3 na Łady 02); gdy dziecko żadnych nie ma — zwykłe R3
+   - "szkola", dzień gdy angielski jest ostatni: brak kursów
+   - każdy inny przypadek: wszystko OPRÓCZ kursów oznaczonych gdyAngielski */
+function linieNaDzien(place, ds) {
+  const linie = place.lines || [];
+  if (place.id === "szkola" && ds?.powrotTylkoR3) return [];
+  if (place.id === "dom" && ds?.ranoTylkoR3) {
+    const specjalne = linie.filter(l => l.gdyAngielski);
+    return specjalne.length ? specjalne : linie.filter(l => !l.gdyAngielski && jestR3(l));
+  }
+  return linie.filter(l => !l.gdyAngielski);
+}
+
 /* Kurs zamieniony na „linię" w formacie, którego używa reszta aplikacji. */
 /* Odsiewa kursy odjeżdżające przed podaną godziną, pilnując tablic równoległych:
    przyjazdy i nazwy przystanków docelowych muszą zostać dopasowane do odjazdów,
@@ -207,6 +261,8 @@ function jakoLinia(k) {
     naPrzystanku: k.naPrzystanku || null, dojscieDoDomu: k.dojscieDoDomu || 0,
     doPrzystanku: k.doPrzystanku || null,
     przystanekDocelowy: k.przystanekDocelowy || null,
+    celLabel: k.celLabel || null,
+    goingTo: k.goingTo || null,
     numery: k.numery || null,
     dojsciaZPrzystanku: k.dojsciaZPrzystanku || null,
     arrivals: { weekday: (k.przyjazdy || {}).weekday || k.naPrzystanku || [],
@@ -216,7 +272,7 @@ function jakoLinia(k) {
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 30,
+  version: 31,
 
   lekcje: PROFIL.lekcje,
   angielski: PROFIL.angielski || {},
@@ -233,7 +289,10 @@ const DEFAULT_CONFIG = {
       stop: DO_SZKOLY[PROFIL.doSzkoly[0]].stop,
       arriveLabel: "Będziesz w szkole o",
       arriveWalk: DO_SZKOLY[PROFIL.doSzkoly[0]].zPrzystanku,
-      lines: PROFIL.doSzkoly.map(k => jakoLinia(DO_SZKOLY[k]))
+      // kursy na Early Stage są w tym samym miejscu (dom), ale obowiązują TYLKO w dni,
+      // gdy Early Stage jest pierwszy — pilnuje tego linieNaDzien()
+      lines: PROFIL.doSzkoly.map(k => jakoLinia(DO_SZKOLY[k])).concat(
+        (PROFIL.naEarlyStage || []).map(k => ({ ...jakoLinia(DO_SZKOLY[k]), gdyAngielski: true })))
     },
     {
       id: "szkola", name: "Szkoła", emoji: "🎒",
@@ -250,7 +309,16 @@ const DEFAULT_CONFIG = {
           ? nieWczesniejNiz(ZE_SZKOLY[k], PROFIL.powrotGimbusOd)
           : ZE_SZKOLY[k]))
     }
-  ]
+  ].concat(PROFIL.angielski ? [{
+    id: "early", name: "Early Stage", emoji: "🔤",
+    inPlace: "Jesteś w Early Stage",
+    goingTo: "Jedziesz do domu",
+    lat: EARLY_STAGE.lat, lon: EARLY_STAGE.lon,
+    radius: EARLY_STAGE.radius,
+    walk: ZE_SZKOLY[PROFIL.zEarlyStage[0]].walk,
+    stop: ZE_SZKOLY[PROFIL.zEarlyStage[0]].stop,
+    lines: PROFIL.zEarlyStage.map(k => jakoLinia(ZE_SZKOLY[k]))
+  }] : [])
 };
 
 /* Widoczny znacznik wersji — pozwala sprawdzić, czy telefon ma aktualny plik. */
@@ -362,12 +430,10 @@ function nextDepartures(place, now, count) {
     base.setHours(0, 0, 0, 0);
     const type = dayType(base);
     const found = [];
-    // dzień z angielskim na początku (rano) albo na końcu (powrót) — tylko R3
+    // dzień z Early Stage na początku (rano) albo na końcu (powrót) zmienia,
+    // które linie w ogóle wolno wziąć pod uwagę — patrz linieNaDzien()
     const ds = type === "weekday" ? dzienSzkolny(base.getDay(), config) : null;
-    const tylkoR3 = !!ds && (place.id === "dom" ? ds.ranoTylkoR3
-                          : place.id === "szkola" ? ds.powrotTylkoR3 : false);
-    for (const line of place.lines || []) {
-      if (tylkoR3 && !jestR3(line)) continue;
+    for (const line of linieNaDzien(place, ds)) {
       (line[type] || []).forEach((raw, idx) => {
         const m = /^\s*(\d{1,2})[:.](\d{2})\s*$/.exec(raw);
         if (!m) return;
@@ -464,6 +530,9 @@ function normalize(cfg) {
       arriveWalk: Number(l.arriveWalk) >= 0 ? Number(l.arriveWalk) : (Number(p.arriveWalk) || 0),
       doPrzystanku: Array.isArray(l.doPrzystanku) ? l.doPrzystanku : null,
       przystanekDocelowy: l.przystanekDocelowy || null,
+      celLabel: l.celLabel || null,
+      goingTo: l.goingTo || null,
+      gdyAngielski: !!l.gdyAngielski,
       numery: Array.isArray(l.numery) ? l.numery : null,
       dojsciaZPrzystanku: Array.isArray(l.dojsciaZPrzystanku) ? l.dojsciaZPrzystanku : null,
       weekday: Array.isArray(l.weekday) ? l.weekday : [],
@@ -596,6 +665,10 @@ function render() {
   }
 
   const { place, mode, dist } = resolvePlace();
+  // dzisiejszy dzień szkolny — decyduje, czy "szkola" w ogóle ma dziś kurs powrotny
+  // (w dni, gdy angielski jest ostatni, dziecko wraca spod Early Stage, nie spod szkoły)
+  const dzisDs = dayType(now) === "weekday" ? dzienSzkolny(now.getDay(), config) : null;
+  const brakZeSzkolyDzis = !!place && place.id === "szkola" && !!dzisDs?.powrotTylkoR3;
 
   // --- komunikaty ---
   let bannerHtml = "";
@@ -613,8 +686,10 @@ function render() {
   }
 
   // --- ręczny przełącznik miejsc ---
+  // Pokazujemy go też, gdy stoisz W SZKOLE (mode "inside") w dzień, kiedy trzeba
+  // ręcznie przejść na ekran Early Stage — inaczej nie byłoby jak się tam przełączyć.
   const sw = $("#switch");
-  const showSwitch = mode !== "inside" && config.places.length > 1;
+  const showSwitch = (mode !== "inside" || brakZeSzkolyDzis) && config.places.length > 1;
   if (changed("switch", showSwitch + "|" + manualPlaceId + "|" +
       config.places.map(p => p.id + p.emoji + p.name).join(","))) {
     sw.innerHTML = "";
@@ -643,6 +718,24 @@ function render() {
     setText("#leave", "");
     setClass("#main", "main");
     setText("#foot", hhmm(now) + WERSJA);
+    return;
+  }
+
+  // Dziś nie wsiadasz w szkole — idziesz na Early Stage, autobus jest stamtąd.
+  // Bez tego wyjątku nextDepartures() "przeskoczyłoby" na kurs z JUTRA, co
+  // pokazałoby zupełnie mylącą godzinę dziecku stojącemu dziś pod szkołą.
+  if (brakZeSzkolyDzis) {
+    setText("#lineTitle", "Autobus");
+    setText("#whereAmI", place.inPlace || "Jesteś w szkole");
+    setText("#goingTo", "Dziś idziesz na Early Stage");
+    setText("#atLabel", "");
+    setText("#at", "");
+    setText("#count", "");
+    setText("#arrive", "");
+    setText("#wDomu", "");
+    setText("#leave", "Po angielskim wracasz autobusem sprzed Early Stage — przełącz się na 🔤 powyżej.");
+    setClass("#main", "main");
+    setText("#foot", (place.stop || "") + " · " + hhmm(now) + WERSJA);
     return;
   }
 
@@ -699,7 +792,8 @@ function render() {
       // inaczej dziecko wysiądzie tam, gdzie nie chciało
       const marsz = d.celWalk != null ? d.celWalk : (d.arriveWalk || 0);
       setText("#arrive", "Wysiadasz: " + d.celStop);
-      setText("#wDomu", "W domu jesteś o " + hhmm(new Date(d.arrive.getTime() + marsz * 60000)));
+      setText("#wDomu", (d.line.celLabel || "W domu jesteś o") + " " +
+                        hhmm(new Date(d.arrive.getTime() + marsz * 60000)));
     } else if (place.arriveLabel && d.arrive) {
       const naMiejscu = new Date(d.arrive.getTime() + (d.arriveWalk ?? place.arriveWalk ?? 0) * 60000);
       setText("#arrive", place.arriveLabel + " " + hhmm(naMiejscu));
@@ -753,17 +847,19 @@ function planDnia(dzien) {
   const ds = dzienSzkolny(dzien, config);
   const dom = config.places.find(p => p.id === "dom");
   const szkola = config.places.find(p => p.id === "szkola");
+  const early = config.places.find(p => p.id === "early");
   if (!ds || !dom || !szkola) return null;
 
   // dzień szkolny = od pierwszych do ostatnich zajęć (lekcje albo angielski)
   const start = naMinuty(ds.start), koniec = naMinuty(ds.koniec);
+  // w dni, gdy angielski jest ostatni, wraca się spod Early Stage — nie spod szkoły
+  const zrodloPowrotu = ds.powrotTylkoR3 && early ? early : szkola;
 
   /* RANO: spośród kursów, które zdążą przed dzwonkiem, wybieramy ten pozwalający
      wyjść z domu NAJPÓŹNIEJ. To nie to samo co „najpóźniejszy odjazd" — kursy
      ruszają z różnych przystanków, więc różnią się czasem dojścia. */
   let rano = null;
-  for (const linia of dom.lines || []) {
-    if (ds.ranoTylkoR3 && !jestR3(linia)) continue;
+  for (const linia of linieNaDzien(dom, ds)) {
     (linia.weekday || []).forEach((o, i) => {
       const przyj = (linia.arrivals?.weekday || [])[i];
       if (!przyj) return;
@@ -780,8 +876,7 @@ function planDnia(dzien) {
   /* PO LEKCJACH: liczy się godzina dotarcia DO DOMU, nie sam odjazd. Gimbus bywa
      wolniejszy albo wysadza dalej, więc wcześniejszy odjazd nie zawsze wygrywa. */
   let powrot = null;
-  for (const linia of szkola.lines || []) {
-    if (ds.powrotTylkoR3 && !jestR3(linia)) continue;
+  for (const linia of zrodloPowrotu.lines || []) {
     (linia.weekday || []).forEach((d, i) => {
       if (naMinuty(d) < koniec + (linia.walk || 0)) return;
       const przyj = (linia.arrivals?.weekday || [])[i];
@@ -801,7 +896,7 @@ function planDnia(dzien) {
 
   return {
     dzien, nazwa: DNI_PL[dzien], start: ds.lekcje.start, koniec: ds.lekcje.koniec,
-    angielski: ds.angielski, angielskiNajpierw: ds.ranoTylkoR3,
+    angielski: ds.angielski, angielskiNajpierw: ds.ranoTylkoR3, angielskiOstatni: ds.powrotTylkoR3,
     linia: rano ? rano.linia : null,
     stop: rano ? rano.stop : null,
     zDomu: rano ? naGodzine(rano.wyjscie) : null,
@@ -839,11 +934,15 @@ function pokazTydzien() {
         ? '<div class="etap"><span class="opis">Wyjdź z domu</span><b>' + p.zDomu + '</b></div>' +
           '<div class="etap"><span class="opis">' + esc(p.linia) + ' — ' + esc(p.stop) +
           '</span><b>' + p.odjazd + '</b></div>' +
-          '<div class="etap"><span class="opis">W szkole jesteś</span><b>' + p.wSzkole + '</b>' +
+          '<div class="etap"><span class="opis">' +
+            (p.angielskiNajpierw ? 'W Early Stage jesteś' : 'W szkole jesteś') + '</span><b>' + p.wSzkole + '</b>' +
           '<span class="mala">' + p.zapas + ' min przed ' +
             (p.angielskiNajpierw ? 'angielskim' : 'lekcjami') + '</span></div>'
         : '<div class="etap"><span class="opis">Rano</span><b>brak kursu</b></div>') +
-      (p.angielskiNajpierw ? wierszAng + wierszLekcji : wierszLekcji + wierszAng) +
+      (p.angielskiNajpierw ? wierszAng + wierszLekcji
+        : p.angielskiOstatni ? wierszLekcji +
+          '<div class="etap"><span class="opis">Idziesz na</span><b>Early Stage</b></div>' + wierszAng
+        : wierszLekcji) +
       (p.powrot
         ? '<div class="etap"><span class="opis">Powrót: ' + esc(p.liniaPowrot) +
           (p.celPowrot ? ' → ' + esc(p.celPowrot) : '') +

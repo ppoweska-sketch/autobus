@@ -52,19 +52,28 @@ Od 06.09 aplikacja wybiera między **R3** a **gimbusem** (rozkład SP Łady, gmi
 | R3 | Podolszyn Nowy 02 | Alicja | 5 min | jw., 14 min później |
 | Gimbus | Limby | wszyscy | 15 min | 2 rano, 4 po lekcjach |
 
-**Angielski** (od 14.09) jest osobnym polem `angielski` przy dziecku, nie częścią
-planu lekcji — `LEKCJE_MARYSI` dzieli z Marysią Alicja, która na angielski nie chodzi.
+**Angielski / Early Stage** (Marysia i Janek, od 15.09) to zajęcia w budynku
+przy przystanku **Łady** — 321 m od szkoły, osobne miejsce z własnym GPS-em,
+własnym rozkładem i własnym przystankiem, nie wariant szkoły. Pole `angielski`
+jest osobne od planu lekcji, bo `LEKCJE_MARYSI` dzieli z Marysią Alicja, która
+na angielski nie chodzi.
 
 | Dziecko | Dzień | Angielski | Skutek |
 |---|---|---|---|
-| Janek | pon | 12:15–13:45 | ostatnie zajęcia → powrót tylko R3 |
-| Janek | pt | 07:55–09:25 | pierwsze zajęcia → rano tylko R3 |
-| Marysia | pon | 13:55–15:25 | ostatnie zajęcia → powrót tylko R3 |
-| Marysia | czw | 09:15–10:45 | pierwsze zajęcia → rano tylko R3 |
+| Janek | pon | 12:15–13:45 | ostatnie zajęcia → wraca spod Early Stage (Łady 01) |
+| Janek | pt | 07:55–09:25 | pierwsze zajęcia → jedzie na Early Stage (Łady 02) |
+| Marysia | pon | 13:55–15:25 | ostatnie zajęcia → wraca spod Early Stage (Łady 01) |
+| Marysia | czw | 09:15–10:45 | pierwsze zajęcia → jedzie na Early Stage (Łady 02); zapas **0 min** |
 
 Między angielskim a lekcjami dziecko zostaje w szkole, więc dzień liczy się od
-pierwszych do ostatnich zajęć. Reguła „tylko R3" działa na ekranie głównym (gimbus
-znika z listy w tym dniu i kierunku), w planie tygodnia i w PDF-ie.
+pierwszych do ostatnich zajęć. Gdy angielski jest **pierwszy**, dom oferuje TYLKO
+R3 na Łady 02 (gimbus znika z listy tego dnia). Gdy jest **ostatni**, szkoła nie
+oferuje nic — ekran mówi „Dziś idziesz na Early Stage" i każe przełączyć się na
+🔤, skąd odjeżdża R3 z Łady 01. Reguła działa identycznie na ekranie głównym,
+w planie tygodnia i w PDF-ie (`naEarlyStage` / `zEarlyStage` przy dziecku).
+
+Czwartek Marysi ma zapas dokładnie **0 minut** między przyjazdem na Łady 02
+a początkiem angielskiego — każde opóźnienie autobusu i się spóźni.
 
 **Reguła wyboru:** rano ten kurs, przy którym można wyjść z domu **najpóźniej**
 (a nie ten, który dowozi najbliżej dzwonka — przy dwóch przystankach o różnym

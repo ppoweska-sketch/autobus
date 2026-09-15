@@ -136,17 +136,28 @@ def wczytaj(kto):
         angielski = {int(d): (a, b) for d, a, b in a_pary}
     plan = [(DNI[int(d) - 1], a, b, angielski.get(int(d))) for d, a, b in pary]
 
-    rano = []
-    for k in klucze:
-        if k not in do_szkoly:
-            raise SystemExit(f"{kto}: kurs {k!r} nie istnieje w DO_SZKOLY")
-        t = do_szkoly[k]
-        przyj = re.search(r"przyjazdy:\s*\{(.*?)\}", t, re.S).group(1)
-        nry = re.search(r"numery:\s*\[(.*?)\]", t, re.S)
-        rano.append({"linia": tekst(t, "linia"), "stop": tekst(t, "stop"),
-                     "walk": liczba(t, "walk"), "zPrzystanku": liczba(t, "zPrzystanku"),
-                     "odjazdy": godziny(t, "weekday"), "przyjazdy": godziny(przyj, "weekday"),
-                     "numery": re.findall(r'"([^"]+)"', nry.group(1)) if nry else []})
+    def zbuduj_rano(klucze_):
+        wynik = []
+        for k in klucze_:
+            if k not in do_szkoly:
+                raise SystemExit(f"{kto}: kurs {k!r} nie istnieje w DO_SZKOLY")
+            t = do_szkoly[k]
+            przyj = re.search(r"przyjazdy:\s*\{(.*?)\}", t, re.S).group(1)
+            nry = re.search(r"numery:\s*\[(.*?)\]", t, re.S)
+            wynik.append({"linia": tekst(t, "linia"), "stop": tekst(t, "stop"),
+                         "walk": liczba(t, "walk"), "zPrzystanku": liczba(t, "zPrzystanku"),
+                         "odjazdy": godziny(t, "weekday"), "przyjazdy": godziny(przyj, "weekday"),
+                         "numery": re.findall(r'"([^"]+)"', nry.group(1)) if nry else []})
+        return wynik
+
+    rano = zbuduj_rano(klucze)
+
+    # Early Stage: OSOBNE miejsce z własnym przystankiem — obowiązuje tylko w dni,
+    # gdy angielski jest pierwszy/ostatni (patrz linieNaDzien() w autobus.js).
+    klucze_early_rano = re.findall(r'"(\w+)"',
+        re.search(r"naEarlyStage:\s*\[(.*?)\]", profil, re.S).group(1)) \
+        if "naEarlyStage" in profil else []
+    rano_early = zbuduj_rano(klucze_early_rano)
 
     klucze_pow = re.findall(r'"(\w+)"',
                             re.search(r"zeSzkoly:\s*\[(.*?)\]", profil, re.S).group(1)) \
@@ -156,35 +167,49 @@ def wczytaj(kto):
     m_od = re.search(r'powrotGimbusOd:\s*"(\d{2}:\d{2})"', profil)
     gimbus_od = mn(m_od.group(1)) if m_od else None
 
-    powroty = []
-    for k in klucze_pow:
-        t = ze_szkoly[k]
-        cele = re.search(r"doPrzystanku:\s*\[(.*?)\]", t, re.S)
-        nry = re.search(r"numery:\s*\[(.*?)\]", t, re.S)
-        staly_cel = tekst(t, "przystanekDocelowy")
-        linia = tekst(t, "linia")
-        odjazdy = godziny(t, "weekday")
-        lista_celow = re.findall(r'"([^"]+)"', cele.group(1)) if cele else []
-        lista_nrow = re.findall(r'"([^"]+)"', nry.group(1)) if nry else []
-        if gimbus_od is not None and linia == "Gimbus":
-            zostaw = [i for i, o in enumerate(odjazdy) if mn(o) >= gimbus_od]
-            odjazdy = [odjazdy[i] for i in zostaw]
-            lista_celow = [lista_celow[i] for i in zostaw if i < len(lista_celow)]
-            lista_nrow = [lista_nrow[i] for i in zostaw if i < len(lista_nrow)]
-        if not lista_celow and staly_cel:
-            lista_celow = [staly_cel] * len(odjazdy)
-        powroty.append({"linia": linia, "stop": tekst(t, "stop"),
-                        "walk": liczba(t, "walk"), "odjazdy": odjazdy,
-                        "cele": lista_celow, "numery": lista_nrow})
-    return imie, plan, rano, powroty
+    def zbuduj_powroty(klucze_):
+        wynik = []
+        for k in klucze_:
+            t = ze_szkoly[k]
+            cele = re.search(r"doPrzystanku:\s*\[(.*?)\]", t, re.S)
+            nry = re.search(r"numery:\s*\[(.*?)\]", t, re.S)
+            staly_cel = tekst(t, "przystanekDocelowy")
+            linia = tekst(t, "linia")
+            odjazdy = godziny(t, "weekday")
+            lista_celow = re.findall(r'"([^"]+)"', cele.group(1)) if cele else []
+            lista_nrow = re.findall(r'"([^"]+)"', nry.group(1)) if nry else []
+            if gimbus_od is not None and linia == "Gimbus":
+                zostaw = [i for i, o in enumerate(odjazdy) if mn(o) >= gimbus_od]
+                odjazdy = [odjazdy[i] for i in zostaw]
+                lista_celow = [lista_celow[i] for i in zostaw if i < len(lista_celow)]
+                lista_nrow = [lista_nrow[i] for i in zostaw if i < len(lista_nrow)]
+            if not lista_celow and staly_cel:
+                lista_celow = [staly_cel] * len(odjazdy)
+            wynik.append({"linia": linia, "stop": tekst(t, "stop"),
+                          "walk": liczba(t, "walk"), "odjazdy": odjazdy,
+                          "cele": lista_celow, "numery": lista_nrow})
+        return wynik
+
+    powroty = zbuduj_powroty(klucze_pow)
+
+    klucze_early_pow = re.findall(r'"(\w+)"',
+        re.search(r"zEarlyStage:\s*\[(.*?)\]", profil, re.S).group(1)) \
+        if "zEarlyStage" in profil else []
+    powrot_early = zbuduj_powroty(klucze_early_pow)
+
+    if a_zrodlo is not None and not (rano_early or powrot_early):
+        raise SystemExit(f"{kto}: ma pole angielski, ale brak naEarlyStage/zEarlyStage")
+
+    return imie, plan, rano, powroty, rano_early, powrot_early
 
 
-def zbuduj(plan, rano, powroty):
+def zbuduj(plan, rano, powroty, rano_early=(), powrot_early=()):
     wiersze, uwagi = [], []
     for dzien, start, koniec, ang in plan:
         # Dzień szkolny = od pierwszych do ostatnich zajęć; między angielskim a lekcjami
-        # dziecko zostaje w szkole. Angielski na początku dnia -> rano tylko R3,
-        # na końcu -> powrót tylko R3. Ta sama reguła co dzienSzkolny() w autobus.js.
+        # dziecko zostaje w szkole. Angielski na początku dnia -> rano jedzie na Early
+        # Stage (osobny przystanek), na końcu -> wraca spod Early Stage. Ta sama reguła
+        # co linieNaDzien()/dzienSzkolny() w autobus.js.
         s, k = mn(start), mn(koniec)
         rano_r3 = powrot_r3 = False
         if ang:
@@ -192,10 +217,15 @@ def zbuduj(plan, rano, powroty):
             if mn(ang[1]) > k: k, powrot_r3 = mn(ang[1]), True
         pierwsze = gg(s)
 
+        # w dni z Early Stage na początku/końcu korzysta się WYŁĄCZNIE z jej kursów;
+        # brak takich kursów u dziecka -> spadamy na zwykłe R3, tak jak w aplikacji
+        zrodlo_rano = rano_early if (rano_r3 and rano_early) else \
+            [k_ for k_ in rano if re.search(r"\bR3\b", k_["linia"])] if rano_r3 else rano
+        zrodlo_pow = powrot_early if (powrot_r3 and powrot_early) else \
+            [k_ for k_ in powroty if re.search(r"\bR3\b", k_["linia"])] if powrot_r3 else powroty
+
         naj = None
-        for kurs in rano:
-            if rano_r3 and not re.search(r"\bR3\b", kurs["linia"]):
-                continue
+        for kurs in zrodlo_rano:
             for o, p in zip(kurs["odjazdy"], kurs["przyjazdy"]):
                 w_szkole = mn(p) + kurs["zPrzystanku"]
                 if w_szkole > s:
@@ -211,9 +241,7 @@ def zbuduj(plan, rano, powroty):
             raise SystemExit(f"{dzien}: żaden kurs nie dowozi przed {pierwsze}")
 
         pow = None
-        for kurs in powroty:
-            if powrot_r3 and not re.search(r"\bR3\b", kurs["linia"]):
-                continue
+        for kurs in zrodlo_pow:
             for d in kurs["odjazdy"]:
                 if mn(d) < k + kurs["walk"]:
                     continue
@@ -241,8 +269,8 @@ def zbuduj(plan, rano, powroty):
 
 
 def main():
-    imie, plan, rano, powroty = wczytaj(DZIECKO)
-    wiersze, uwagi = zbuduj(plan, rano, powroty)
+    imie, plan, rano, powroty, rano_early, powrot_early = wczytaj(DZIECKO)
+    wiersze, uwagi = zbuduj(plan, rano, powroty, rano_early, powrot_early)
 
     doc = SimpleDocTemplate(str(WYNIK), pagesize=A4,
                             leftMargin=12 * mm, rightMargin=12 * mm,
