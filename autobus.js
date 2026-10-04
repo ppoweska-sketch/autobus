@@ -176,13 +176,15 @@ const DZIECI = {
              dwieOpcjePowrotu: true,
              lekcje: LEKCJE_MARYSI },
   janek:   { imie: "Janek",   dom: "falenty",   doSzkoly: ["widokowa", "gimbus"],            zeSzkoly: ["r3_widokowa", "gimbus_limby"],
-             // NIE ZMIENIAĆ bez rozmowy z Pawłem: to ograniczenie bezpieczeństwa,
-             // nie preferencja. Janek nie może wysiąść z gimbusa na Limbach przed
-             // 15:00, bo wymaga odbioru przez osobę dorosłą. Kosztuje go to 25 min
-             // w środę (gimbus 13:20 dowiózłby na 13:45, R3 dowozi na 14:10) —
-             // i tak ma zostać.
-             powrotGimbusOd: "15:00",
+             // Odbiór dorosłego na Limbach przestał obowiązywać — decyzja Pawła 04.10,
+             // znosi ograniczenie bezpieczeństwa opisane w historii (powrotGimbusOd:
+             // "15:00"). Janek może teraz wracać gimbusem o każdej porze — np. w środę
+             // to 25 min szybciej niż R3 (13:20 → 13:45 zamiast R3 → 14:10).
              angielski: { 1: { start: "12:15", koniec: "13:45" }, 5: { start: "07:55", koniec: "09:25" } },
+             // Szachy: zajęcia dodatkowe PO lekcjach, w tym samym budynku co szkoła —
+             // w odróżnieniu od angielskiego NIE zmieniają przystanku ani linii, tylko
+             // przesuwają koniec dnia (decyzja Pawła 04.10).
+             dodatkowe: { 4: { nazwa: "Szachy", start: "14:20", koniec: "15:05" } },
              naEarlyStage: ["widokowa_lady02"], zEarlyStage: ["r3_lady01"],
              lekcje: {
     1: { start: "07:45", koniec: "11:05" },
@@ -200,18 +202,31 @@ const IMIE = PROFIL.imie;
    w szkole, więc dzień szkolny trwa od pierwszych do ostatnich zajęć. Jeśli PIERWSZE
    zajęcia dnia to angielski — rano jedzie tylko R3. Jeśli OSTATNIE — wraca tylko R3.
    Zasada obowiązuje na wszystkich trzech powierzchniach: ekranie głównym, planie
-   tygodnia i w PDF-ie (plan_tygodnia_pdf.py liczy to samo). */
+   tygodnia i w PDF-ie (plan_tygodnia_pdf.py liczy to samo).
+
+   DODATKOWE (decyzja Pawła 04.10, np. szachy Janka). Zajęcia PO lekcjach w TYM SAMYM
+   budynku co szkoła — w odróżnieniu od angielskiego (Early Stage, inny przystanek)
+   tylko wydłużają koniec dnia, nie wymuszają R3. Jeśli angielski i dodatkowe wypadną
+   tego samego dnia, „tylko R3" obowiązuje wyłącznie wtedy, gdy to WŁAŚNIE angielski
+   jest faktycznie ostatnim punktem dnia — dodatkowe późniejsze od angielskiego
+   wypchnęłoby wymóg Early Stage, mimo że i tak trzeba by wrócić spod szkoły. */
 const naMin = s => Number(s.slice(0, s.indexOf(":"))) * 60 + Number(s.slice(s.indexOf(":") + 1));
 function dzienSzkolny(dzien, cfg) {
   const l = cfg?.lekcje?.[dzien];
   if (!l) return null;
   const a = cfg?.angielski?.[dzien] || null;
+  const dod = cfg?.dodatkowe?.[dzien] || null;
+  const mLekcje = naMin(l.koniec);
+  const mAng = a ? naMin(a.koniec) : -1;
+  const mDod = dod ? naMin(dod.koniec) : -1;
+  const mKoniec = Math.max(mLekcje, mAng, mDod);
+  const koniec = mKoniec === mAng ? a.koniec : mKoniec === mDod ? dod.koniec : l.koniec;
   return {
-    lekcje: l, angielski: a,
+    lekcje: l, angielski: a, dodatkowe: dod,
     start: a && naMin(a.start) < naMin(l.start) ? a.start : l.start,
-    koniec: a && naMin(a.koniec) > naMin(l.koniec) ? a.koniec : l.koniec,
+    koniec,
     ranoTylkoR3: !!a && naMin(a.start) < naMin(l.start),
-    powrotTylkoR3: !!a && naMin(a.koniec) > naMin(l.koniec)
+    powrotTylkoR3: !!a && mAng === mKoniec && mAng > mLekcje
   };
 }
 const jestR3 = linia => /\bR3\b/.test(linia.number || "");
@@ -272,10 +287,11 @@ function jakoLinia(k) {
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 31,
+  version: 32,
 
   lekcje: PROFIL.lekcje,
   angielski: PROFIL.angielski || {},
+  dodatkowe: PROFIL.dodatkowe || {},
 
   places: [
     {
@@ -559,10 +575,18 @@ function normalize(cfg) {
       angielski[d] = { start: a.start, koniec: a.koniec };
     }
   }
+  const dodatkowe = {};
+  for (const d of [1, 2, 3, 4, 5]) {
+    const x = cfg?.dodatkowe?.[d];
+    if (x && /^\d{1,2}:\d{2}$/.test(x.start || "") && /^\d{1,2}:\d{2}$/.test(x.koniec || "")) {
+      dodatkowe[d] = { nazwa: x.nazwa || "Zajęcia dodatkowe", start: x.start, koniec: x.koniec };
+    }
+  }
   return {
     version: Number(cfg?.version) || 0,
     lekcje,
     angielski,
+    dodatkowe,
     places: places.length ? places : structuredClone(DEFAULT_CONFIG).places
   };
 }
@@ -897,6 +921,7 @@ function planDnia(dzien) {
   return {
     dzien, nazwa: DNI_PL[dzien], start: ds.lekcje.start, koniec: ds.lekcje.koniec,
     angielski: ds.angielski, angielskiNajpierw: ds.ranoTylkoR3, angielskiOstatni: ds.powrotTylkoR3,
+    dodatkowe: ds.dodatkowe,
     linia: rano ? rano.linia : null,
     stop: rano ? rano.stop : null,
     zDomu: rano ? naGodzine(rano.wyjscie) : null,
@@ -927,6 +952,10 @@ function pokazTydzien() {
       ? '<div class="etap lekcje"><span class="opis">Angielski</span><b>' +
         p.angielski.start + ' – ' + p.angielski.koniec + '</b></div>'
       : '';
+    const wierszDod = p.dodatkowe
+      ? '<div class="etap lekcje"><span class="opis">' + esc(p.dodatkowe.nazwa) + '</span><b>' +
+        p.dodatkowe.start + ' – ' + p.dodatkowe.koniec + '</b></div>'
+      : '';
     html +=
       '<div class="dzien' + dzis + '">' +
       '<h3>' + p.nazwa + (dzis ? ' <span class="znacznik">dziś</span>' : '') + '</h3>' +
@@ -939,10 +968,10 @@ function pokazTydzien() {
           '<span class="mala">' + p.zapas + ' min przed ' +
             (p.angielskiNajpierw ? 'angielskim' : 'lekcjami') + '</span></div>'
         : '<div class="etap"><span class="opis">Rano</span><b>brak kursu</b></div>') +
-      (p.angielskiNajpierw ? wierszAng + wierszLekcji
-        : p.angielskiOstatni ? wierszLekcji +
+      (p.angielskiNajpierw ? wierszAng + wierszLekcji + wierszDod
+        : p.angielskiOstatni ? wierszLekcji + wierszDod +
           '<div class="etap"><span class="opis">Idziesz na</span><b>Early Stage</b></div>' + wierszAng
-        : wierszLekcji) +
+        : wierszLekcji + wierszDod) +
       (p.powrot
         ? '<div class="etap"><span class="opis">Powrót: ' + esc(p.liniaPowrot) +
           (p.celPowrot ? ' → ' + esc(p.celPowrot) : '') +

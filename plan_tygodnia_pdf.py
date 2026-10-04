@@ -134,7 +134,21 @@ def wczytaj(kto):
         if not a_pary or len(a_pary) != a_zrodlo.count("start:"):
             raise SystemExit(f"{kto}: nie odczytałem całego pola angielski: {a_zrodlo}")
         angielski = {int(d): (a, b) for d, a, b in a_pary}
-    plan = [(DNI[int(d) - 1], a, b, angielski.get(int(d))) for d, a, b in pary]
+
+    # dodatkowe: zajęcia PO lekcjach w TYM SAMYM budynku (np. szachy) — wydłużają
+    # koniec dnia, ale w odróżnieniu od angielskiego/Early Stage NIE wymuszają R3,
+    # bo nie zmieniają przystanku ani linii. Patrz dzienSzkolny() w autobus.js.
+    dodatkowe = {}
+    d_zrodlo = blok_pola(profil, "dodatkowe")
+    if d_zrodlo is not None:
+        d_re = r'(\d):\s*\{\s*nazwa:\s*"([^"]+)",\s*start:\s*"(\d{2}:\d{2})",\s*koniec:\s*"(\d{2}:\d{2})"'
+        d_pary = re.findall(d_re, d_zrodlo)
+        if not d_pary or len(d_pary) != d_zrodlo.count("start:"):
+            raise SystemExit(f"{kto}: nie odczytałem całego pola dodatkowe: {d_zrodlo}")
+        dodatkowe = {int(d): (nazwa, a, b) for d, nazwa, a, b in d_pary}
+
+    plan = [(DNI[int(d) - 1], a, b, angielski.get(int(d)), dodatkowe.get(int(d)))
+            for d, a, b in pary]
 
     def zbuduj_rano(klucze_):
         wynik = []
@@ -205,16 +219,23 @@ def wczytaj(kto):
 
 def zbuduj(plan, rano, powroty, rano_early=(), powrot_early=()):
     wiersze, uwagi = [], []
-    for dzien, start, koniec, ang in plan:
+    for dzien, start, koniec, ang, dod in plan:
         # Dzień szkolny = od pierwszych do ostatnich zajęć; między angielskim a lekcjami
         # dziecko zostaje w szkole. Angielski na początku dnia -> rano jedzie na Early
-        # Stage (osobny przystanek), na końcu -> wraca spod Early Stage. Ta sama reguła
-        # co linieNaDzien()/dzienSzkolny() w autobus.js.
-        s, k = mn(start), mn(koniec)
-        rano_r3 = powrot_r3 = False
-        if ang:
-            if mn(ang[0]) < s: s, rano_r3 = mn(ang[0]), True
-            if mn(ang[1]) > k: k, powrot_r3 = mn(ang[1]), True
+        # Stage (osobny przystanek), na końcu -> wraca spod Early Stage. Dodatkowe (np.
+        # szachy) wydłuża tylko koniec dnia, bez wymuszania R3 — ten sam budynek co
+        # szkoła. "Tylko R3" wraca spod Early Stage tylko wtedy, gdy to WŁAŚNIE
+        # angielski jest faktycznie ostatnim punktem dnia. Ta sama reguła co
+        # linieNaDzien()/dzienSzkolny() w autobus.js.
+        m_lekcje_koniec = mn(koniec)
+        s = mn(start)
+        rano_r3 = bool(ang) and mn(ang[0]) < s
+        if rano_r3:
+            s = mn(ang[0])
+        m_ang = mn(ang[1]) if ang else -1
+        m_dod = mn(dod[2]) if dod else -1
+        k = max(m_lekcje_koniec, m_ang, m_dod)
+        powrot_r3 = bool(ang) and m_ang == k and m_ang > m_lekcje_koniec
         pierwsze = gg(s)
 
         # w dni z Early Stage na początku/końcu korzysta się WYŁĄCZNIE z jej kursów;
@@ -255,10 +276,13 @@ def zbuduj(plan, rano, powroty, rano_early=(), powrot_early=()):
         if pow is None:
             raise SystemExit(f"{dzien}: brak kursu powrotnego po {gg(k)}")
 
-        zajecia = f"{start}–{koniec}"
+        czesci = [f"{start}–{koniec}"]
+        if dod:
+            czesci.append(f"{dod[0]}: {dod[1]}–{dod[2]}")
         if ang:
             wiersz_ang = f"ang. {ang[0]}–{ang[1]}"
-            zajecia = f"{wiersz_ang}\n{zajecia}" if rano_r3 else f"{zajecia}\n{wiersz_ang}"
+            czesci = [wiersz_ang] + czesci if rano_r3 else czesci + [wiersz_ang]
+        zajecia = "\n".join(czesci)
         wiersze.append([dzien, zajecia, gg(naj["wyjscie"]),
                         f"{naj['linia']}\n{naj['stop']}", naj["odjazd"],
                         gg(naj["wSzkole"]),

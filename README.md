@@ -108,13 +108,18 @@ nie po samym odjeździe — gimbus bywa wolniejszy albo wysadza dalej.
 Przy każdym kursie gimbusa jest **numer autobusu z rozkładu gminy** (nr 1, 2 lub 3),
 bo o tej samej porze spod szkoły potrafią ruszać różne autobusy w różne strony.
 
-**Janek nie wraca gimbusem przed 15:00** (`powrotGimbusOd` w jego wpisie), bo **wymaga
-wtedy odbioru przez osobę dorosłą na Limbach**. To ograniczenie bezpieczeństwa, nie
-wygoda — kosztuje go 25 minut w środę (gimbus 13:20 dowiózłby na 13:45, R3 dowozi
-na 14:10) i mimo to zostaje. Nie usuwać przy porządkowaniu kodu.
+**Janek od 04.10 może wracać gimbusem o każdej porze** — decyzja Pawła znosi dawne
+ograniczenie `powrotGimbusOd: "15:00"` (wymagany wtedy odbiór dorosłego na Limbach).
+W środę skraca to powrót o 25 minut (gimbus 13:20 dowozi na 13:45, R3 dowoził na 14:10).
 
-Reguła działa w aplikacji i w skrypcie PDF; przy dodawaniu podobnych ograniczeń trzeba
-poprawić **oba**, inaczej telefon i wydruk pokażą inny kurs. Raz już tak było.
+**Szachy Janka** (czwartek 14:20–15:05, decyzja Pawła 04.10) to zajęcia dodatkowe PO
+lekcjach, w TYM SAMYM budynku co szkoła — w odróżnieniu od angielskiego/Early Stage
+tylko wydłużają koniec dnia szkolnego, nie zmieniają przystanku ani linii. Pole
+`dodatkowe` przy dziecku, czytane przez `dzienSzkolny()` tak samo jak `angielski`.
+
+Reguły (angielski, dodatkowe) działają w aplikacji i w skrypcie PDF; przy dodawaniu
+podobnych ograniczeń trzeba poprawić **oba**, inaczej telefon i wydruk pokażą inny
+kurs. Raz już tak było.
 
 Podolszyn Nowy 02 leży **14 minut za Widokową 02 na tej samej trasie tego samego
 kursu** — dlatego godziny przyjazdu do szkoły są wspólne dla wszystkich dzieci
