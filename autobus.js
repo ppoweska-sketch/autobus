@@ -287,7 +287,7 @@ function jakoLinia(k) {
 
 const DEFAULT_CONFIG = {
   // PODNIEŚ przy każdej zmianie rozkładu albo planu lekcji.
-  version: 32,
+  version: 33,
 
   lekcje: PROFIL.lekcje,
   angielski: PROFIL.angielski || {},
@@ -462,7 +462,6 @@ function nextDepartures(place, now, count) {
         found.push({
           line, when,
           stop: line.stop, walk: line.walk, arriveWalk: line.arriveWalk,
-          wyjdz: new Date(when.getTime() - line.walk * 60000),
           numer: (line.numery || [])[idx] || null,
           celStop: (line.doPrzystanku || [])[idx] || line.przystanekDocelowy || null,
           celWalk: (line.dojsciaZPrzystanku || [])[idx],
@@ -474,8 +473,12 @@ function nextDepartures(place, now, count) {
     out.push(...found);
   }
   out.sort((a, b) => a.when - b.when);
-  const osiagalne = out.filter(d => d.wyjdz.getTime() >= now.getTime() - 60000);
-  return (osiagalne.length ? osiagalne : out).slice(0, count);
+  // Pokazujemy kurs aż do ODJAZDU, nie tylko do teoretycznego czasu wyjścia z domu —
+  // dziecko sprawdza aplikację TEŻ w drodze na przystanek, nie tylko stojąc w domu
+  // przed wyjściem, więc kurs "na styk" czy spóźniony na wyjście z domu ma zostać
+  // widoczny (czerwone "Wyjdź TERAZ" niżej już sygnalizuje pośpiech), a nie zniknąć
+  // na rzecz kolejnego za godzinę (decyzja Pawła 21.10).
+  return out.slice(0, count);
 }
 
 function minutesUntil(when, now) {

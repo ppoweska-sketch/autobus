@@ -20,6 +20,11 @@ Kolor napisu „Autobus za…" zmienia się sam: zielony = spokojnie, pomarańcz
 czerwony = wyjdź natychmiast. W soboty działa rozkład sobotni, w niedziele i święta
 (także ruchome) pokazuje się ekran po prawej.
 
+Ekran pokazuje kurs **aż do jego odjazdu**, nawet jeśli teoretyczny czas na wyjście z domu
+już minął (wtedy jest czerwono, „Wyjdź TERAZ") — nie przeskakuje od razu na kolejny
+kurs za godzinę. Dziecko sprawdza aplikację też w drodze na przystanek, nie tylko stojąc
+w domu (decyzja Pawła 21.10).
+
 Pod ikoną 📅 w lewym górnym rogu jest **plan całego tygodnia** z podświetlonym dziś.
 
 ## Pliki
